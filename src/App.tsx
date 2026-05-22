@@ -8,7 +8,7 @@ import ReportView from './components/ReportView';
 import { auth } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { Division, Persona, Scenario, UserProfile, SimulationRecord } from './types';
-import { LogOut, ShieldCheck, User as UserIcon, Settings } from 'lucide-react';
+import { LogOut, ShieldCheck, User as UserIcon, Settings, Cloud, CloudOff } from 'lucide-react';
 import { dbService } from './services/dbService';
 
 const ADMIN_PASSWORD = '6927376';
@@ -16,6 +16,7 @@ const ADMIN_PASSWORD = '6927376';
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dbConnected, setDbConnected] = useState(false);
   const [step, setStep] = useState<'setup' | 'chat' | 'admin' | 'report' | 'admin-login'>('setup');
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -63,10 +64,18 @@ export default function App() {
 
   // Database initialization side effect
   useEffect(() => {
-    if (!loading && user && auth.currentUser) {
-      dbService.testConnection();
-      dbService.syncInitialData();
-    }
+    const initDb = async () => {
+      if (!loading && user && auth.currentUser) {
+        try {
+          await dbService.testConnection();
+          setDbConnected(true);
+          dbService.syncInitialData();
+        } catch (err) {
+          setDbConnected(false);
+        }
+      }
+    };
+    initDb();
   }, [user?.uid, loading]);
 
   const handleLogin = (newUser: UserProfile) => {
@@ -163,6 +172,13 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-6">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${
+            dbConnected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+          }`}>
+            {dbConnected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
+            <span>{dbConnected ? 'CLOUD CONNECTED' : 'OFFLINE MODE'}</span>
+          </div>
+
           <div className="flex items-center gap-3 pr-6 border-r border-white/10">
             <div className="text-right">
               <div className="text-[11px] font-bold text-white">{user.displayName || 'User'}</div>
