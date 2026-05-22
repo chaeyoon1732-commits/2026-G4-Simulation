@@ -1,0 +1,6 @@
+{
+  "name": "현대자동차 AI 면담 시뮬레이터",
+  "description": "현장 리더 보임 예정자를 위한 AI 기반 면담 시뮬레이션 시스템",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

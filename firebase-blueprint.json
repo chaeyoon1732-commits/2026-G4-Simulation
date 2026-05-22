@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "personas": {
+      "title": "Persona",
+      "description": "Interview target profiles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "age": { "type": "number" },
+        "trait": { "type": "string" },
+        "mbti": { "type": "string" },
+        "style": { "type": "string" },
+        "division": { "type": "string", "enum": ["영업", "서비스"] }
+      },
+      "required": ["id", "name", "role", "age", "trait", "mbti", "style", "division"]
+    },
+    "scenarios": {
+      "title": "Scenario",
+      "description": "Interview situational scenarios",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "category", "title", "description"]
+    },
+    "simulations": {
+      "title": "Simulation Result",
+      "description": "Results of completed simulations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "personaId": { "type": "string" },
+        "personaName": { "type": "string" },
+        "scenarioId": { "type": "string" },
+        "scenarioTitle": { "type": "string" },
+        "messages": { 
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "score": { "type": "number" },
+        "sentiment": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userEmail", "personaId", "scenarioId", "messages", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/personas/{personaId}": {
+      "schema": "personas",
+      "description": "Master persona list"
+    },
+    "/scenarios/{scenarioId}": {
+      "schema": "scenarios",
+      "description": "Master scenario list"
+    },
+    "/simulations/{simulationId}": {
+      "schema": "simulations",
+      "description": "Simulation history logs"
+    }
+  }
+}

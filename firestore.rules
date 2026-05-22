@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global denying catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'chaeyoon1732@gmail.com' || 
+        request.auth.token.email.split('@')[1] == 'hyundai.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Personas ---
+    match /personas/{personaId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidPersona(request.resource.data);
+    }
+
+    function isValidPersona(data) {
+      return data.keys().hasAll(['id', 'name', 'role', 'age', 'trait', 'mbti', 'style', 'division'])
+             && data.keys().size() == 8
+             && data.id is string && data.id.size() <= 20
+             && data.name is string && data.name.size() <= 50
+             && data.role is string && data.role.size() <= 50
+             && data.age is number
+             && data.trait is string && data.trait.size() <= 1000
+             && data.mbti is string && data.mbti.size() <= 10
+             && data.style is string && data.style.size() <= 2000
+             && data.division in ['영업', '서비스'];
+    }
+
+    // --- Scenarios ---
+    match /scenarios/{scenarioId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidScenario(request.resource.data);
+    }
+
+    function isValidScenario(data) {
+      return data.keys().hasAll(['id', 'category', 'title', 'description'])
+             && data.keys().size() == 4
+             && data.id is string && data.id.size() <= 20
+             && data.category is string && data.category.size() <= 50
+             && data.title is string && data.title.size() <= 100
+             && data.description is string && data.description.size() <= 5000;
+    }
+
+    // --- Simulations ---
+    match /simulations/{simulationId} {
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidSimulation(request.resource.data);
+      allow update: if isAdmin(); // Only admins can correct results
+      allow delete: if isAdmin();
+    }
+
+    function isValidSimulation(data) {
+      return data.keys().hasAll(['userId', 'userEmail', 'personaId', 'scenarioId', 'messages', 'timestamp'])
+             && data.userId == request.auth.uid
+             && data.userEmail is string
+             && data.messages.size() > 0
+             && data.timestamp == request.time;
+    }
+  }
+}
