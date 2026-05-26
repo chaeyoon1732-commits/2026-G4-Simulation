@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
@@ -11,22 +10,40 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Gemini initialization
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+// API Key Validation Middleware for Chat
+const validateApiKey = (req: any, res: any, next: any) => {
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ 
+      error: 'GEMINI_API_KEY가 설정되지 않았습니다.',
+      details: '서버 환경 변수를 확인해주세요.'
+    });
   }
-});
+  next();
+};
+
+// Gemini initialization helper
+const getAiClient = () => {
+  return new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY || '',
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+};
 
 // API routes go here FIRST
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    apiKeySet: !!process.env.GEMINI_API_KEY,
+    env: process.env.NODE_ENV
+  });
 });
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', validateApiKey, async (req, res) => {
   try {
     const { persona, scenario, history } = req.body;
 
@@ -68,32 +85,43 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 `;
 
     try {
+      const ai = getAiClient();
+      console.log('Generating content with model: gemini-1.5-flash-latest');
       const response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: systemPrompt,
+        model: 'gemini-1.5-flash-latest',
+        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
       
       const text = response.text || '';
+      console.log('Received AI response length:', text.length);
       
       // Extract emotion from the text if present
       const emotionMatch = text.match(/\[감정:\s?([^\]]+)\]/);
       const emotion = emotionMatch ? emotionMatch[1] : '중립';
       
-      // Extract metrics/goals if present - using a more robust regex for nested JSON
+      // Extract metrics/goals if present
       const analysisMatch = text.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
-      const analysis = analysisMatch ? JSON.parse(analysisMatch[1]) : {
+      let analysis = {
         metrics: { rapport: 50, analysis: 30, solution: 10, engagement: 40 },
         goals: [false, false, false]
       };
 
-      const cleanText = text.replace(/\[감정:\s?[^\]]+\]/g, '')
+      if (analysisMatch) {
+        try {
+          analysis = JSON.parse(analysisMatch[1]);
+        } catch (e) {
+          console.error("Failed to parse analysis JSON:", e);
+        }
+      }
+
+      let cleanText = text.replace(/\[감정:\s?[^\]]+\]/g, '')
                           .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
                           .replace(/\s+/g, ' ')
                           .trim();
 
       res.json({ content: cleanText, emotion, analysis });
     } catch (innerError: any) {
-      console.error('Gemini API Error (Inner):', innerError);
+      console.error('Gemini API Details Error:', innerError);
       
       const isRateLimit = innerError?.status === 429 || innerError?.code === 429 || innerError.message?.includes('429') || innerError.message?.includes('quota');
       const isServiceUnavailable = innerError?.status === 503 || innerError?.code === 503 || innerError.message?.includes('503') || innerError.message?.includes('overloaded');
@@ -109,7 +137,7 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         status = 503;
       }
       
-      res.status(status).json({ error: errorMessage, details: innerError.message });
+      res.status(status).json({ error: errorMessage, details: innerError.message, code: innerError.code });
     }
   } catch (outerError: any) {
     console.error('API Chat Handler Error (Outer):', outerError);
@@ -119,6 +147,8 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    // Dynamic import to avoid including vite in production bundles
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -131,7 +161,13 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    
+    // Note: This catch-all should be LAST
+    app.get('*', (req, res, next) => {
+      // Skip if the request is for an API route that might have missed or 404ed
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
 
