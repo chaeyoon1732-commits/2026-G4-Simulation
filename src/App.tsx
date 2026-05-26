@@ -24,15 +24,25 @@ export default function App() {
 
   useEffect(() => {
     // Check local storage for session
-    const savedUser = localStorage.getItem('simulation_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    try {
+      const savedUser = localStorage.getItem('simulation_user');
+      if (savedUser && savedUser !== 'undefined') {
+        setUser(JSON.parse(savedUser));
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved user from localStorage', e);
+      localStorage.removeItem('simulation_user');
     }
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       // Check if we have manually entered user info in localStorage
-      const savedUserStr = localStorage.getItem('simulation_user');
-      const savedUser = savedUserStr ? JSON.parse(savedUserStr) as UserProfile : null;
+      let savedUser = null;
+      try {
+        const savedUserStr = localStorage.getItem('simulation_user');
+        savedUser = savedUserStr && savedUserStr !== 'undefined' ? JSON.parse(savedUserStr) as UserProfile : null;
+      } catch (e) {
+        console.warn('Failed to parse saved user during auth state change', e);
+      }
 
       if (firebaseUser) {
         // If we have a saved user and the IDs match, don't overwrite with generic info
