@@ -33,9 +33,15 @@ export default function LoginView({ onLogin }: LoginViewProps) {
           isAdmin: result.user.email === 'chaeyoon1732@gmail.com' || result.user.email?.endsWith('@hyundai.com')
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      alert('로그인 중 오류가 발생했습니다.');
+      if (error?.code === 'auth/operation-not-allowed') {
+        alert('Google 로그인이 활성화되지 않았습니다. Firebase 콘솔에서 설정을 확인해주세요.');
+      } else if (error?.code === 'auth/popup-blocked') {
+        alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
+      } else {
+        alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,9 +69,13 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         isAdmin: formData.entryCode === '6927376', // Admin code check
         photoURL: null
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Anonymous login error:', error);
-      alert('로그인 중 오류가 발생했습니다.');
+      if (error?.code === 'auth/operation-not-allowed') {
+        alert('Anonymous(익명) 로그인이 활성화되지 않았습니다. Firebase 콘솔(Authentication > Sign-in method)에서 익명 로그인을 활성화해주세요.');
+      } else {
+        alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}`);
+      }
     } finally {
       setIsLoading(false);
     }
