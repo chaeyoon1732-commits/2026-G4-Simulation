@@ -1,10 +1,10 @@
 {
-  "projectId": "elevated-groove-n8gvj",
-  "appId": "1:251244064722:web:14d3beebe311e315c2620b",
-  "apiKey": "AIzaSyCB_Sld-Uy_-GI9R1HoNptt_fE1c_vpoTY",
-  "authDomain": "elevated-groove-n8gvj.firebaseapp.com",
+  "projectId": "g4-simulation",
+  "appId": "1:167144762879:web:eb48abad9f063f47990bca",
+  "apiKey": "AIzaSyD76kNydUZ_QHG1hqLja991crDD45OjkQY",
+  "authDomain": "g4-simulation.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-cc3e73a7-2da8-4242-8462-3f90ebf91e5f",
-  "storageBucket": "elevated-groove-n8gvj.firebasestorage.app",
-  "messagingSenderId": "251244064722",
+  "storageBucket": "g4-simulation.firebasestorage.app",
+  "messagingSenderId": "167144762879",
   "measurementId": ""
 }

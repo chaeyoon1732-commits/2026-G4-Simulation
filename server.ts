@@ -68,7 +68,7 @@ ${history.map((m: any) => `${m.role === 'user' ? userTitle : persona.name}: ${m.
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash',
       contents: systemPrompt,
     });
     
@@ -96,11 +96,20 @@ ${history.map((m: any) => `${m.role === 'user' ? userTitle : persona.name}: ${m.
     
     // Check for rate limit or quota issues
     const isRateLimit = error?.status === 429 || error?.code === 429 || error.message?.includes('429') || error.message?.includes('quota');
-    const errorMessage = isRateLimit
-      ? 'AI 서비스의 무료 할당량을 초과했습니다. 잠시 후 다시 시도하시거나, 관리자에게 문의하여 유료 모델로 업그레이드해 주세요.'
-      : 'AI 응답 생성 중 오류가 발생했습니다.';
+    const isServiceUnavailable = error?.status === 503 || error?.code === 503 || error.message?.includes('503') || error.message?.includes('overloaded');
     
-    const status = isRateLimit ? 429 : (typeof error?.status === 'number' ? error.status : 500);
+    let errorMessage = 'AI 응답 생성 중 오류가 발생했습니다.';
+    let status = 500;
+
+    if (isRateLimit) {
+      errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.';
+      status = 429;
+    } else if (isServiceUnavailable) {
+      errorMessage = '현재 AI 모델에 많은 사용자가 몰리고 있습니다. 잠시 후 다시 시도해 주세요.';
+      status = 503;
+    }
+    
+    // Ensure we always return JSON
     res.status(status).json({ error: errorMessage });
   }
 });

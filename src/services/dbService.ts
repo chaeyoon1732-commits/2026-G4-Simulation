@@ -24,9 +24,13 @@ export const dbService = {
   // Validate Connection
   async testConnection() {
     try {
+      // attempt to get a document from the server to verify connection
       await getDocFromServer(doc(db, 'test', 'connection'));
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('the client is offline')) {
+    } catch (error: any) {
+      console.error("Firestore connectivity error:", error);
+      if (error?.message?.includes('Could not reach Cloud Firestore backend') || error?.code === 'unavailable') {
+        alert('Firestore 서버에 연결할 수 없습니다.\n\nFirebase 콘솔에서 Firestore가 활성화되어 있는지, 그리고 사용 가능한 상태인지 확인해주세요.\n\n프로젝트 ID: g4-simulation');
+      } else if (error instanceof Error && error.message.includes('the client is offline')) {
         console.error("Please check your Firebase configuration.");
       }
     }

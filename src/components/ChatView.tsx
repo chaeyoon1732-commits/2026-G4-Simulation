@@ -93,6 +93,18 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
             history: [] 
           }),
         });
+
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            setMessages([{ role: 'assistant', content: `[오류] ${errorData.error || 'Unknown error'}`, emotion: '오류', timestamp: Date.now() }]);
+          } else {
+            setMessages([{ role: 'assistant', content: `[통신 오류] 서버에서 올바르지 않은 응답이 왔습니다. (Status: ${response.status})`, emotion: '오류', timestamp: Date.now() }]);
+          }
+          return;
+        }
+
         const data = await response.json();
         
         if (data.error) {
@@ -143,6 +155,21 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
           history: newMessages
         }),
       });
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        let errorMsg = `서버 오류가 발생했습니다. (Status: ${response.status})`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        }
+        
+        setMessages(prev => [...prev, { role: 'assistant', content: `[오류] ${errorMsg}`, emotion: '오류', timestamp: Date.now() }]);
+        setIsLoading(false);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.error) {

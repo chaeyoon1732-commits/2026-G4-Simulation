@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { LogIn, Key, Users, Building, User } from 'lucide-react';
 import { UserProfile } from '../types';
 import { auth, googleProvider } from '../lib/firebase';
-import { signInWithPopup, signInAnonymously } from 'firebase/auth';
+import { signInWithPopup } from 'firebase/auth';
 
 interface LoginViewProps {
   onLogin: (userData: UserProfile) => void;
 }
 
 export default function LoginView({ onLogin }: LoginViewProps) {
-  const [formData, setFormData] = useState({
-    entryCode: '',
-    group: '1',
-    affiliation: '',
-    displayName: ''
-  });
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
@@ -25,7 +18,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
       if (result.user) {
         onLogin({
           uid: result.user.uid,
-          displayName: result.user.displayName || 'Guest User',
+          displayName: result.user.displayName || '사용자',
           email: result.user.email || '',
           affiliation: '현대자동차',
           group: '1',
@@ -36,43 +29,11 @@ export default function LoginView({ onLogin }: LoginViewProps) {
     } catch (error: any) {
       console.error('Login error:', error);
       if (error?.code === 'auth/operation-not-allowed') {
-        alert('Google 로그인이 활성화되지 않았습니다. Firebase 콘솔에서 설정을 확인해주세요.');
+        alert('Google 로그인이 활성화되지 않았습니다. Firebase 콘솔(Authentication > 로그인 방법)에서 Google을 활성화해주세요.');
+      } else if (error?.code === 'auth/admin-restricted-operation') {
+        alert('사용자 생성 권한이 제한되었습니다. Firebase 콘솔(프로젝트 ID: g4-simulation)에서 [Authentication > 설정 > 사용자 작업] 메뉴로 이동하여 "계정 만들기 허용"이 체크되어 있는지 확인해주세요.');
       } else if (error?.code === 'auth/popup-blocked') {
         alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
-      } else {
-        alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}`);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.entryCode || !formData.affiliation || !formData.displayName) {
-      alert('모든 필드를 입력해주세요.');
-      return;
-    }
-
-    if (formData.entryCode !== '101TQCD' && formData.entryCode !== '6927376') {
-      alert('올바른 입장코드를 입력해주세요.');
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      const result = await signInAnonymously(auth);
-      onLogin({
-        ...formData,
-        uid: result.user.uid,
-        email: `${formData.displayName}@simulation.com`, // Artificial email
-        isAdmin: formData.entryCode === '6927376', // Admin code check
-        photoURL: null
-      });
-    } catch (error: any) {
-      console.error('Anonymous login error:', error);
-      if (error?.code === 'auth/operation-not-allowed') {
-        alert('Anonymous(익명) 로그인이 활성화되지 않았습니다. Firebase 콘솔(Authentication > Sign-in method)에서 익명 로그인을 활성화해주세요.');
       } else {
         alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}`);
       }
@@ -110,6 +71,9 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             현장 리더<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-sky-100">AI 면담 시뮬레이터</span>
           </h1>
+          <p className="text-blue-200/70 text-lg font-medium max-w-md mx-auto">
+            면담 시뮬레이션을 시작하기 위해<br />현대자동차 구글 계정으로 로그인해주세요.
+          </p>
         </div>
 
         <motion.div 
@@ -118,97 +82,22 @@ export default function LoginView({ onLogin }: LoginViewProps) {
           transition={{ delay: 0.4 }}
           className="w-full bg-white/5 backdrop-blur-2xl border border-white/10 p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden"
         >
-          <form onSubmit={handleSubmit} className="space-y-5 text-left">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-blue-300 uppercase tracking-widest flex items-center gap-2">
-                <Key className="w-3 h-3" /> 입장코드
-              </label>
-              <input 
-                type="password"
-                required
-                value={formData.entryCode}
-                onChange={e => setFormData({...formData, entryCode: e.target.value})}
-                placeholder="입장코드를 입력하세요"
-                className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 px-6 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-blue-300 uppercase tracking-widest flex items-center gap-2">
-                  <User className="w-3 h-3" /> 성함
-                </label>
-                <input 
-                  type="text"
-                  required
-                  value={formData.displayName}
-                  onChange={e => setFormData({...formData, displayName: e.target.value})}
-                  placeholder="본인 성함"
-                  className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 px-6 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-blue-300 uppercase tracking-widest flex items-center gap-2">
-                  <Users className="w-3 h-3" /> 조 선택
-                </label>
-                <select 
-                  value={formData.group}
-                  onChange={e => setFormData({...formData, group: e.target.value})}
-                  className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 px-6 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                >
-                  <option value="1" className="bg-[#002C5F]">1조</option>
-                  <option value="2" className="bg-[#002C5F]">2조</option>
-                  <option value="3" className="bg-[#002C5F]">3조</option>
-                  <option value="4" className="bg-[#002C5F]">4조</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-blue-300 uppercase tracking-widest flex items-center gap-2">
-                <Building className="w-3 h-3" /> 소속 (거점/팀)
-              </label>
-              <input 
-                type="text"
-                required
-                value={formData.affiliation}
-                onChange={e => setFormData({...formData, affiliation: e.target.value})}
-                placeholder="예: 강남대로지점 / 국내서비스전략팀"
-                className="w-full bg-white/10 border border-white/10 rounded-2xl py-4 px-6 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full flex items-center gap-3 bg-white text-[#002C5F] px-8 py-5 rounded-2xl font-bold hover:bg-blue-50 transition-all shadow-xl active:scale-95 justify-center group mt-8"
-            >
-              <LogIn className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-              시뮬레이션 시작하기
-            </button>
-          </form>
-
-          <div className="mt-6 flex items-center gap-4">
-            <div className="flex-1 h-px bg-white/10"></div>
-            <span className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">OR</span>
-            <div className="flex-1 h-px bg-white/10"></div>
-          </div>
-
           <button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full h-14 bg-white/10 border border-white/20 text-white rounded-2xl font-bold mt-6 hover:bg-white/20 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+            className="w-full flex items-center gap-4 bg-white text-[#002C5F] px-8 py-6 rounded-2xl font-bold hover:bg-blue-50 transition-all shadow-xl active:scale-95 justify-center group disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <div className="w-6 h-6 border-3 border-[#002C5F]/30 border-t-[#002C5F] rounded-full animate-spin"></div>
             ) : (
               <>
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
                   <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
-                Google 계정으로 로그인
+                <span className="text-lg">Google 계정으로 계속하기</span>
               </>
             )}
           </button>
