@@ -27,16 +27,17 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
-  const { persona, scenario, history } = req.body;
+  try {
+    const { persona, scenario, history } = req.body;
 
-  if (!persona || !scenario || !history) {
-    return res.status(400).json({ error: 'Missing required parameters' });
-  }
+    if (!persona || !scenario || !history) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
 
-  const isFirstMessage = history.length === 0;
-  const userTitle = persona.division === '영업' ? '지점장님' : '팀장님';
-  
-  const systemPrompt = `
+    const isFirstMessage = Array.isArray(history) && history.length === 0;
+    const userTitle = (persona.division === '영업') ? '지점장님' : '팀장님';
+    
+    const systemPrompt = `
 귀하는 현대자동차 국내사업본부의 직원입니다. 현재 당신은 ${userTitle}과 면담을 진행하고 있습니다.
 
 [당신의 프로필]
@@ -63,54 +64,56 @@ MBTI: ${persona.mbti}
 ${isFirstMessage ? `7. 시작 방식: 현재 상황에 이미 처해있는 상태로, ${userTitle}이 면담을 시작하자고 했거나 본인이 찾아온 시점입니다. 별도의 요약 없이 바로 대화를 시작하는 첫 마디를 하세요.` : ''}
 
 현재 대화 기록:
-${history.map((m: any) => `${m.role === 'user' ? userTitle : persona.name}: ${m.content}`).join('\n')}
+${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTitle : persona.name}: ${m.content}`).join('\n') : ''}
 `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: systemPrompt,
-    });
-    
-    const text = response.text || '';
-    
-    // Extract emotion from the text if present
-    const emotionMatch = text.match(/\[감정:\s?([^\]]+)\]/);
-    const emotion = emotionMatch ? emotionMatch[1] : '중립';
-    
-    // Extract metrics/goals if present - using a more robust regex for nested JSON
-    const analysisMatch = text.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
-    const analysis = analysisMatch ? JSON.parse(analysisMatch[1]) : {
-      metrics: { rapport: 50, analysis: 30, solution: 10, engagement: 40 },
-      goals: [false, false, false]
-    };
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: systemPrompt,
+      });
+      
+      const text = response.text || '';
+      
+      // Extract emotion from the text if present
+      const emotionMatch = text.match(/\[감정:\s?([^\]]+)\]/);
+      const emotion = emotionMatch ? emotionMatch[1] : '중립';
+      
+      // Extract metrics/goals if present - using a more robust regex for nested JSON
+      const analysisMatch = text.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
+      const analysis = analysisMatch ? JSON.parse(analysisMatch[1]) : {
+        metrics: { rapport: 50, analysis: 30, solution: 10, engagement: 40 },
+        goals: [false, false, false]
+      };
 
-    const cleanText = text.replace(/\[감정:\s?[^\]]+\]/g, '')
-                        .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
-                        .replace(/\s+/g, ' ')
-                        .trim();
+      const cleanText = text.replace(/\[감정:\s?[^\]]+\]/g, '')
+                          .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
+                          .replace(/\s+/g, ' ')
+                          .trim();
 
-    res.json({ content: cleanText, emotion, analysis });
-  } catch (error: any) {
-    console.error('Gemini API Error:', error);
-    
-    // Check for rate limit or quota issues
-    const isRateLimit = error?.status === 429 || error?.code === 429 || error.message?.includes('429') || error.message?.includes('quota');
-    const isServiceUnavailable = error?.status === 503 || error?.code === 503 || error.message?.includes('503') || error.message?.includes('overloaded');
-    
-    let errorMessage = 'AI 응답 생성 중 오류가 발생했습니다.';
-    let status = 500;
+      res.json({ content: cleanText, emotion, analysis });
+    } catch (innerError: any) {
+      console.error('Gemini API Error (Inner):', innerError);
+      
+      const isRateLimit = innerError?.status === 429 || innerError?.code === 429 || innerError.message?.includes('429') || innerError.message?.includes('quota');
+      const isServiceUnavailable = innerError?.status === 503 || innerError?.code === 503 || innerError.message?.includes('503') || innerError.message?.includes('overloaded');
+      
+      let errorMessage = 'AI 응답 생성 중 오류가 발생했습니다.';
+      let status = 500;
 
-    if (isRateLimit) {
-      errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.';
-      status = 429;
-    } else if (isServiceUnavailable) {
-      errorMessage = '현재 AI 모델에 많은 사용자가 몰리고 있습니다. 잠시 후 다시 시도해 주세요.';
-      status = 503;
+      if (isRateLimit) {
+        errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.';
+        status = 429;
+      } else if (isServiceUnavailable) {
+        errorMessage = '현재 AI 모델에 많은 사용자가 몰리고 있습니다. 잠시 후 다시 시도해 주세요.';
+        status = 503;
+      }
+      
+      res.status(status).json({ error: errorMessage, details: innerError.message });
     }
-    
-    // Ensure we always return JSON
-    res.status(status).json({ error: errorMessage });
+  } catch (outerError: any) {
+    console.error('API Chat Handler Error (Outer):', outerError);
+    res.status(500).json({ error: '서버 내부 오류가 발생했습니다.', details: outerError.message });
   }
 });
 
