@@ -12,10 +12,14 @@ app.use(express.json());
 
 // API Key Validation Middleware for Chat
 const validateApiKey = (req: any, res: any, next: any) => {
-  if (!process.env.GEMINI_API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  console.log('API Key Validation - GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY, 'GOOGLE_API_KEY exists:', !!process.env.GOOGLE_API_KEY);
+
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.trim() === '') {
     return res.status(500).json({ 
-      error: 'GEMINI_API_KEY가 설정되지 않았습니다.',
-      details: '서버 환경 변수를 확인해주세요.'
+      error: 'API 키가 설정되지 않았습니다.',
+      details: 'AI Studio 설정(Settings -> Secrets) 또는 Vercel 환경 변수에 GEMINI_API_KEY 또는 GOOGLE_API_KEY를 등록해주세요. ' + 
+               '키를 등록한 후에는 반드시 서버를 재시작하거나 다시 배포해야 적용됩니다.'
     });
   }
   next();
@@ -23,8 +27,9 @@ const validateApiKey = (req: any, res: any, next: any) => {
 
 // Gemini initialization helper
 const getAiClient = () => {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   return new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY || '',
+    apiKey: apiKey || '',
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -35,11 +40,17 @@ const getAiClient = () => {
 
 // API routes go here FIRST
 app.get('/api/health', (req, res) => {
+  const availableKeys = Object.keys(process.env).map(key => {
+    const isSet = !!process.env[key] && process.env[key] !== 'MY_GEMINI_API_KEY' && process.env[key] !== '';
+    return { key, isSet };
+  });
+  
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    apiKeySet: !!process.env.GEMINI_API_KEY,
-    env: process.env.NODE_ENV
+    apiKeySet: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+    nodeEnv: process.env.NODE_ENV,
+    secrets: availableKeys.filter(k => k.key.includes('API') || k.key.includes('KEY') || k.key.includes('GEMINI'))
   });
 });
 
@@ -86,9 +97,9 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-1.5-flash-latest');
+      console.log('Generating content with model: gemini-3.5-flash');
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash-latest',
+        model: 'gemini-3.5-flash',
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
       
@@ -123,8 +134,13 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
     } catch (innerError: any) {
       console.error('Gemini API Details Error:', innerError);
       
+      // Log full error for debugging
+      console.log('Full innerError object:', JSON.stringify(innerError, Object.getOwnPropertyNames(innerError)));
+
       const isRateLimit = innerError?.status === 429 || innerError?.code === 429 || innerError.message?.includes('429') || innerError.message?.includes('quota');
       const isServiceUnavailable = innerError?.status === 503 || innerError?.code === 503 || innerError.message?.includes('503') || innerError.message?.includes('overloaded');
+      const isUnauthenticated = innerError?.status === 401 || innerError?.code === 401 || innerError.message?.includes('401');
+      const isModelNotFound = innerError?.status === 404 || innerError?.code === 404 || innerError.message?.includes('404');
       
       let errorMessage = 'AI 응답 생성 중 오류가 발생했습니다.';
       let status = 500;
@@ -135,9 +151,20 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       } else if (isServiceUnavailable) {
         errorMessage = '현재 AI 모델에 많은 사용자가 몰리고 있습니다. 잠시 후 다시 시도해 주세요.';
         status = 503;
+      } else if (isUnauthenticated) {
+        errorMessage = 'API 키가 유효하지 않습니다. Settings -> Secrets에서 키를 확인해주세요.';
+        status = 401;
+      } else if (isModelNotFound) {
+        errorMessage = '선택한 AI 모델을 찾을 수 없습니다. (Model: gemini-3.5-flash)';
+        status = 404;
       }
       
-      res.status(status).json({ error: errorMessage, details: innerError.message, code: innerError.code });
+      res.status(status).json({ 
+        error: errorMessage, 
+        details: innerError.message, 
+        code: innerError.code,
+        status: innerError.status 
+      });
     }
   } catch (outerError: any) {
     console.error('API Chat Handler Error (Outer):', outerError);
