@@ -97,9 +97,9 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-2.0-flash');
+      console.log('Generating content with model: gemini-3.5-flash');
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.5-flash',
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
       
@@ -146,7 +146,7 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       let status = 500;
 
       if (isRateLimit) {
-        errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.';
+        errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요. (일일 할당량 또는 초당 요청 제한에 도달했을 수 있습니다)';
         status = 429;
       } else if (isServiceUnavailable) {
         errorMessage = '현재 AI 모델에 많은 사용자가 몰리고 있습니다. 잠시 후 다시 시도해 주세요.';
@@ -155,7 +155,7 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         errorMessage = 'API 키가 유효하지 않습니다. Settings -> Secrets에서 키를 확인해주세요.';
         status = 401;
       } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-2.0-flash)';
+        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-3.5-flash)';
         status = 404;
       }
       
