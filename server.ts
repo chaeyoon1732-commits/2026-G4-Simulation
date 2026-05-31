@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -97,10 +97,15 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-flash-latest');
+      console.log('Generating content with model: gemini-3.5-flash');
       const response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
+        model: 'gemini-3.5-flash',
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+        config: {
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.LOW
+          }
+        }
       });
       
       const text = response.text || '';
@@ -155,7 +160,7 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         errorMessage = 'API 키가 유효하지 않습니다. Settings -> Secrets에서 키를 확인해주세요.';
         status = 401;
       } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-flash-latest)';
+        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-3.5-flash)';
         status = 404;
       }
       
