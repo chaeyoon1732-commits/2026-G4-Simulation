@@ -71,8 +71,9 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             현장 리더<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-sky-100">AI 면담 시뮬레이터</span>
           </h1>
-          <p className="text-blue-200/70 text-lg font-medium max-w-md mx-auto">
-            면담 시뮬레이션을 시작하기 위해<br />현대자동차 구글 계정으로 로그인해주세요.
+          <p className="text-blue-200/70 text-lg font-medium max-w-2xl mx-auto">
+            현장 리더가 마주할 수 있는 면담 상황을 시뮬레이션 해보세요.<br />
+            교육생께서는 본인 개인 구글 계정으로 로그인해주시기 바랍니다.
           </p>
         </div>
 

@@ -97,15 +97,10 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-3.5-flash');
+      console.log('Generating content with model: gemini-flash-latest');
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-flash-latest',
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-        config: {
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW
-          }
-        }
       });
       
       const text = response.text || '';
@@ -160,7 +155,7 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         errorMessage = 'API 키가 유효하지 않습니다. Settings -> Secrets에서 키를 확인해주세요.';
         status = 401;
       } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-3.5-flash)';
+        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-flash-latest)';
         status = 404;
       }
       
