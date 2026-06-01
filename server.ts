@@ -97,11 +97,38 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-flash-latest');
-      const response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-      });
+      console.log('Generating content with model: gemini-3.5-flash (with ThinkingLevel.LOW)');
+      
+      // Fundamental solution: Retry logic with exponential backoff for 503/429 errors
+      const generateWithRetry = async (retries = 3, initialDelay = 1000) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await ai.models.generateContent({
+              model: 'gemini-3.5-flash',
+              contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+              config: {
+                thinkingConfig: {
+                  thinkingLevel: ThinkingLevel.LOW
+                }
+              }
+            });
+          } catch (err: any) {
+            const isRetryable = err?.status === 503 || err?.code === 503 || err?.status === 429 || err?.code === 429 || 
+                               err.message?.includes('503') || err.message?.includes('429') || err.message?.includes('overloaded');
+            
+            if (isRetryable && i < retries - 1) {
+              const delay = initialDelay * Math.pow(2, i);
+              console.warn(`Gemini API error (${err.status || err.code}). Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            throw err;
+          }
+        }
+      };
+
+      const response = await generateWithRetry();
+      if (!response) throw new Error('No response from AI');
       
       const text = response.text || '';
       console.log('Received AI response length:', text.length);
@@ -149,13 +176,13 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요. (일일 할당량 또는 초당 요청 제한에 도달했을 수 있습니다)';
         status = 429;
       } else if (isServiceUnavailable) {
-        errorMessage = '현재 AI 모델에 많은 사용자가 몰리고 있습니다. 잠시 후 다시 시도해 주세요.';
+        errorMessage = '현재 AI 모델 서버의 부하가 높습니다. 지능형 재시도 로직이 작동 중이나, 계속될 경우 잠시 후 다시 시도해 주세요. (503 Service Unavailable)';
         status = 503;
       } else if (isUnauthenticated) {
-        errorMessage = 'API 키가 유효하지 않습니다. Settings -> Secrets에서 키를 확인해주세요.';
+        errorMessage = 'API 키가 유효하지 않습니다. 유료 계정의 키가 Settings -> Secrets에 정확히 입력되었는지 확인해주세요.';
         status = 401;
       } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 찾을 수 없거나 아직 배포되지 않았습니다. (Model: gemini-flash-latest)';
+        errorMessage = '선택한 AI 모델을 찾을 수 없습니다. (Model: gemini-3.5-flash)';
         status = 404;
       }
       
