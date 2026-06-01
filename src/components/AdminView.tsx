@@ -318,6 +318,7 @@ export default function AdminView() {
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-800">{sim.userName}</div>
                             <div className="text-[10px] text-blue-600 font-bold">{sim.userAffiliation} / {sim.userGroup}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">{sim.userEmail}</div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="font-bold text-h-blue">{sim.personaName}</div>
