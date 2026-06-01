@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { UserProfile } from '../types';
 import { auth, googleProvider } from '../lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signOut } from 'firebase/auth';
 
 interface LoginViewProps {
   onLogin: (userData: UserProfile) => void;
@@ -10,6 +10,15 @@ interface LoginViewProps {
 
 export default function LoginView({ onLogin }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleResetSession = async () => {
+    try {
+      await signOut(auth);
+      alert('로그인 세션이 초기화되었습니다. 다시 시도해주세요.');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     try {
@@ -35,7 +44,29 @@ export default function LoginView({ onLogin }: LoginViewProps) {
       } else if (error?.code === 'auth/popup-blocked') {
         alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업 허용 후 다시 시도해주세요.');
       } else if (error?.code === 'auth/network-request-failed') {
-        alert('네트워크 요청에 실패했습니다 (auth/network-request-failed).\n\n원인 및 해결방법:\n1. 인터넷 연결 상태를 확인해주세요.\n2. 브라우저의 광고 차단(AdBlock 등) 확장 프로그램을 비활성화해주세요.\n3. [중요] Firebase 콘솔(Authentication > 설정 > 승인된 도메인)에 현재 접속 중인 도메인(cloudfront.run.app 등)이 추가되어 있는지 확인해주세요.\n4. 현재 AI Studio의 iFrame 내에서 실행 중이라면, 상단의 [Open in new tab] 버튼을 눌러 새 탭에서 실행해 보세요.\n5. 회사 네트워크(보안망)를 사용 중이라면 개인 네트워크로 시도해보세요.');
+        const troubleshootingMsg = `
+[로그인 실패: 네트워크 오류 심층 분석]
+
+현재 사내망/회사 노트북에서 갑자기 안 되는 경우, 다음 3가지가 핵심 원인일 가능성이 99%입니다:
+
+1. 승인된 도메인 누락 (최근 배포/도메인 변경):
+   Firebase 콘솔(Authentication > 설정 > 승인된 도메인)에 아래 주소들이 모두 추가되어 있는지 확인해주세요:
+   - localhost
+   - ais-dev-4tnj6o5uvzs6iqmjehd72s-317085499485.asia-northeast1.run.app
+   - ais-pre-4tnj6o5uvzs6iqmjehd72s-317085499485.asia-northeast1.run.app
+
+2. 사내 보안 솔루션 (Zscaler, DLP 등) 재동작:
+   잘 되다가 안 되는 경우, 보안 프로그램이 구글 인증 도메인(identitytoolkit.googleapis.com)을 실시간으로 차단하기 시작했을 수 있습니다.
+
+3. 브라우저 캐시 및 인스턴스 꼬임:
+   기존 로그인 시도 기록이 브라우저에 잘못 남아있을 수 있습니다.
+
+[긴급 해결 시도 방법]:
+① 화면 우측 상단의 "Open in new tab"을 눌러 '독립 창'에서 실행 (iFrame 차단 회피)
+② 크롬 시크릿 모드(Ctrl+Shift+N)에서 접속하여 재시도
+③ 핸드폰 테더링(핫스팟)으로 노트북을 연결하여 시도 (보안망 우회)
+        `;
+        alert(troubleshootingMsg);
       } else {
         alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}\n(Error Code: ${error?.code})`);
       }
@@ -105,7 +136,13 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             )}
           </button>
           
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <button 
+              onClick={handleResetSession}
+              className="text-[10px] text-blue-300/40 hover:text-white transition-colors uppercase tracking-[0.2em] font-bold underline underline-offset-4"
+            >
+              Reset Login Session
+            </button>
             <div className="text-[10px] text-blue-300/50 uppercase tracking-[0.3em] font-bold">
               Hyundai Motor Group Training System
             </div>
