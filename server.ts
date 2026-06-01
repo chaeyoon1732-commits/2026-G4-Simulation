@@ -208,6 +208,62 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
   }
 });
 
+app.post('/api/analyze-report', validateApiKey, async (req, res) => {
+  try {
+    const { persona, scenario, history } = req.body;
+
+    if (!persona || !scenario || !history) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const systemPrompt = `
+귀하는 현대자동차 리더십 코칭 전문가입니다. 
+다음은 리더(사용자)와 팀원(${persona.name}, ${persona.role}, ${persona.division}) 간의 시뮬레이션 면담 기록입니다.
+이 대화 내용을 분석하여 리더에게 제공할 상세 결과 리포트를 작성하세요.
+
+[시나리오 내용]
+제목: ${scenario.title}
+내용: ${scenario.description}
+
+[대화 기록]
+${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.content}`).join('\n')}
+
+[요구사항]
+모든 항목은 실제 대화 내용에서 나타난 리더의 발언과 팀원의 반응을 근거로 구체적으로 작성해야 합니다.
+반드시 다음 JSON 형식을 엄격히 지켜 답변하세요. (JSON 외의 텍스트는 포함하지 마세요)
+
+{
+  "overall": "대화 전체에 대한 2~3문장의 종합 총평",
+  "psychology": "대화 중 나타난 팀원의 구체적인 심리 변화 및 반응 분석",
+  "leadership": "리더의 대화 스타일이 팀원에게 미친 영향 및 스타일 진단",
+  "needs": "팀원이 대화 속에서 은연중에 드러낸 핵심 요구사항이나 불안 요소",
+  "strengths": "대화 중 리더가 보여준 가장 긍정적이었던 순간이나 발언 (근거 포함)",
+  "improvements": "가장 아쉬웠던 순간이나 대화의 흐름을 개선하기 위한 포인트",
+  "actionPlan": {
+    "quote": "리더에게 추천하는 이 팀원 맞춤형 대화 예시 (1문장)",
+    "guidelines": ["리더를 위한 구체적인 행동 가이드 3가지"],
+    "risk": "현재의 리더십 스타일을 유지할 경우 발생할 수 있는 잠정적 리스크"
+  }
+}
+`;
+
+    const ai = getAiClient();
+    const result = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const responseText = result.text || '';
+    res.json(JSON.parse(responseText));
+  } catch (error: any) {
+    console.error('Report analysis error:', error);
+    res.status(500).json({ error: '리포트 분석 중 오류가 발생했습니다.', details: error.message });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     // Dynamic import to avoid including vite in production bundles

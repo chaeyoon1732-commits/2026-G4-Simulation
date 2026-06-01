@@ -25,6 +25,20 @@ export interface Message {
   timestamp?: number;
 }
 
+export interface SimulationReport {
+  overall: string;
+  psychology: string;
+  leadership: string;
+  needs: string;
+  strengths: string;
+  improvements: string;
+  actionPlan: {
+    quote: string;
+    guidelines: string[];
+    risk: string;
+  };
+}
+
 export interface SimulationRecord {
   id?: string;
   userId: string;
@@ -47,6 +61,7 @@ export interface SimulationRecord {
   turnCount: number;
   isCompleted: boolean;
   timestamp: any; // Firestore Timestamp
+  evaluation?: SimulationReport;
 }
 
 export interface UserProfile {

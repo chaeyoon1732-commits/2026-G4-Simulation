@@ -137,5 +137,28 @@ export const dbService = {
       handleFirestoreError(error, OperationType.LIST, SIMULATIONS_COL);
       return [];
     }
+  },
+
+  async deleteSimulation(id: string) {
+    try {
+      console.log(`Attempting to delete simulation with ID: ${id}`);
+      if (!id) throw new Error('Simulation ID is missing');
+      await deleteDoc(doc(db, SIMULATIONS_COL, id));
+      console.log(`Successfully deleted simulation ${id} from Firebase.`);
+    } catch (error) {
+      console.error(`Error deleting simulation ${id}:`, error);
+      handleFirestoreError(error, OperationType.DELETE, `${SIMULATIONS_COL}/${id}`);
+    }
+  },
+
+  async deleteAllSimulations() {
+    try {
+      const snapshot = await getDocs(collection(db, SIMULATIONS_COL));
+      const deletePromises = snapshot.docs.map(document => deleteDoc(doc(db, SIMULATIONS_COL, document.id)));
+      await Promise.all(deletePromises);
+      console.log(`Deleted ${snapshot.size} simulations from Firebase.`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, SIMULATIONS_COL);
+    }
   }
 };

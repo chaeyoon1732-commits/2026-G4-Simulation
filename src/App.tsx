@@ -118,11 +118,7 @@ export default function App() {
   };
 
   const handleEnterAdmin = () => {
-    if (user?.isAdmin) {
-      setStep('admin');
-    } else {
-      setStep('admin-login');
-    }
+    setStep('admin-login');
   };
 
   const handleAdminAuth = (password: string) => {

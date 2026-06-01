@@ -213,8 +213,8 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                 </span>
               </div>
               
-              <p className="text-slate-600 leading-relaxed font-medium text-lg mb-10">
-                면담 전반적으로 {simulation.personaName}님의 심리적 동요를 충분히 해소해주지 못한 채, {avgScore < 60 ? '형식적인 응답 위주로 대화가 단절되는 양상을 보였습니다.' : '적절한 공감을 바탕으로 대화를 이끌어 나갔으나 구체적인 실행 계획 수립에 아쉬움이 있습니다.'} 리더의 적극적인 경청과 구체적인 가이드가 병행된다면 다음 면담에서는 더 높은 몰입도를 이끌어낼 수 있을 것입니다.
+              <p className="text-slate-600 leading-relaxed font-bold text-lg mb-10">
+                {simulation.evaluation?.overall || `면담 전반적으로 ${simulation.personaName}님의 심리적 동요를 충분히 해소해주지 못한 채, ${avgScore < 60 ? '형식적인 응답 위주로 대화가 단절되는 양상을 보였습니다.' : '적절한 공감을 바탕으로 대화를 이끌어 나갔으나 구체적인 실행 계획 수립에 아쉬움이 있습니다.'} 리더의 적극적인 경청과 구체적인 가이드가 병행된다면 다음 면담에서는 더 높은 몰입도를 이끌어낼 수 있을 것입니다.`}
               </p>
 
               <div className="grid grid-cols-3 gap-6 mt-auto">
@@ -269,13 +269,13 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
             {/* Qualitative Details Column */}
             <div className="col-span-7 flex flex-col gap-6">
                <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-blue-500">
-                 <div className="flex items-center gap-2 mb-3 text-blue-700">
-                    <Brain className="w-5 h-5" />
-                    <span className="font-black text-sm">팀원 심리 반응 분석</span>
-                 </div>
-                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                   팀원은 리더의 반복되는 질문에 자신의 상황이 제대로 전달되지 않는다고 느껴 다소 냉소적인 반응을 보였습니다. 특히 침묵을 긍정의 의미보다는 '부담 시그널'로 오해할 수 있는 소지가 관찰되었습니다.
-                 </p>
+                  <div className="flex items-center gap-2 mb-3 text-blue-700">
+                     <Brain className="w-5 h-5" />
+                     <span className="font-black text-sm">팀원 심리 반응 분석</span>
+                  </div>
+                  <p className="text-sm text-slate-600 font-bold leading-relaxed">
+                    {simulation.evaluation?.psychology || `팀원은 리더의 반복되는 질문에 자신의 상황이 제대로 전달되지 않는다고 느껴 다소 냉소적인 반응을 보였습니다. 특히 침묵을 긍정의 의미보다는 '부담 시그널'로 오해할 수 있는 소지가 관찰되었습니다.`}
+                  </p>
                </div>
 
                <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-emerald-500">
@@ -305,16 +305,16 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                <h4 className="text-emerald-700 font-black mb-4 flex items-center gap-2">
                  <CheckCircle2 className="w-5 h-5" /> 소통상의 강점 (Strengths)
                </h4>
-               <p className="text-emerald-800/80 text-sm font-medium leading-relaxed">
-                 팀원이 스스로의 문제점에 대해 솔직하게 고백할 때 끝까지 말을 끊지 않고 경청한 점은 매우 훌륭한 라포 형성의 기초가 되었습니다.
+               <p className="text-emerald-800/80 text-sm font-bold leading-relaxed">
+                 {simulation.evaluation?.strengths || `팀원이 스스로의 문제점에 대해 솔직하게 고백할 때 끝까지 말을 끊지 않고 경청한 점은 매우 훌륭한 라포 형성의 기초가 되었습니다.`}
                </p>
             </div>
             <div className="bg-orange-50/50 p-8 rounded-[2rem] border border-orange-100">
                <h4 className="text-orange-700 font-black mb-4 flex items-center gap-2">
                  <AlertTriangle className="w-5 h-5" /> 개선 포인트 (Improvements)
                </h4>
-               <p className="text-orange-800/80 text-sm font-medium leading-relaxed">
-                 결론을 조급하게 내리려 하기보다, 상대방의 질문에 역질문을 통해 스스로 해답을 찾게 하는 '코칭적 대화'의 비중을 높여야 합니다.
+               <p className="text-orange-800/80 text-sm font-bold leading-relaxed">
+                 {simulation.evaluation?.improvements || `결론을 조급하게 내리려 하기보다, 상대방의 질문에 역질문을 통해 스스로 해답을 찾게 하는 '코칭적 대화'의 비중을 높여야 합니다.`}
                </p>
             </div>
           </div>
@@ -330,8 +330,8 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                 <div className="flex items-center gap-2 text-slate-800 font-black text-sm uppercase">
                   <FileText className="w-4 h-4" /> 추천 대화 예시
                 </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 italic text-slate-500 text-sm leading-relaxed shadow-sm quote-card relative">
-                  "{simulation.personaName}씨, 요즘 바쁜 일정 속에서도 묵묵히 제 역할을 해주고 있어 든든해요. 혹시 업무 배분에서 제가 놓치고 있는 부분이 있다면 편하게 말해주세요."
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 italic text-slate-500 text-sm leading-relaxed shadow-sm quote-card relative font-bold">
+                  "{simulation.evaluation?.actionPlan.quote || `${simulation.personaName}씨, 요즘 바쁜 일정 속에서도 묵묵히 제 역할을 해주고 있어 든든해요. 혹시 업무 배분에서 제가 놓치고 있는 부분이 있다면 편하게 말해주세요.`}"
                 </div>
               </div>
 
@@ -340,7 +340,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <UserCheck className="w-4 h-4" /> 리더십 행동 가이드
                 </div>
                 <ul className="space-y-3">
-                  {['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회'].map((item, i) => (
+                  {(simulation.evaluation?.actionPlan.guidelines || ['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회']).map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-slate-600 text-sm font-bold">
                        <span className="w-1.5 h-1.5 bg-[#002C5F] rounded-full"></span>
                        {item}
@@ -353,8 +353,8 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                 <div className="flex items-center gap-2 text-slate-800 font-black text-sm uppercase">
                   <AlertTriangle className="w-4 h-4" /> 리스크 관리 방안
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">
-                  팀원의 무미건조한 반응이 3회 이상 지속될 경우, 팀원은 리더가 자신에게 관심이 없거나 포기했다고 판단하여 이탈 의사가 생길 수 있습니다. 적극적인 비언어적 표현(고개 끄덕임, 눈맞춤)과 언어적 피드백으로 신뢰를 회복해야 합니다.
+                <p className="text-slate-500 text-sm leading-relaxed font-bold">
+                  {simulation.evaluation?.actionPlan.risk || `팀원의 무미건조한 반응이 3회 이상 지속될 경우, 팀원은 리더가 자신에게 관심이 없거나 포기했다고 판단하여 이탈 의사가 생길 수 있습니다. 적극적인 비언어적 표현(고개 끄덕임, 눈맞춤)과 언어적 피드백으로 신뢰를 회복해야 합니다.`}
                 </p>
               </div>
             </div>

@@ -144,13 +144,35 @@ export default function AdminView() {
             ))}
           </nav>
         </div>
-        <button 
-          onClick={handleExportExcel}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700 transition-all"
-        >
-          <Download className="w-4 h-4" />
-          데이터 엑셀 다운로드
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={async () => {
+              if (confirm('모든 시뮬레이션 데이터를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며 Firebase에서도 삭제됩니다.')) {
+                try {
+                  setLoading(true);
+                  await dbService.deleteAllSimulations();
+                  alert('모든 데이터가 삭제되었습니다.');
+                  fetchData();
+                } catch (err: any) {
+                  alert(`삭제 중 오류 발생: ${err.message}`);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            }}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-red-700 transition-all"
+          >
+            <Trash2 className="w-4 h-4" />
+            전체 데이터 삭제
+          </button>
+          <button 
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            데이터 엑셀 다운로드
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-8">
@@ -324,12 +346,41 @@ export default function AdminView() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <button 
-                              onClick={() => setSelectedSimulation(sim)}
-                              className="text-slate-400 hover:text-h-blue p-2 hover:bg-slate-100 rounded-lg transition-all"
-                            >
-                              <Maximize2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex justify-center gap-1">
+                              <button 
+                                onClick={() => setSelectedSimulation(sim)}
+                                className="text-slate-400 hover:text-h-blue p-2 hover:bg-slate-100 rounded-lg transition-all"
+                                title="상세보기"
+                              >
+                                <Maximize2 className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if (confirm('이 시뮬레이션 기록을 삭제하시겠습니까?')) {
+                                    const simId = sim.id;
+                                    if (!simId) {
+                                      alert('삭제 가능한 ID가 없습니다.');
+                                      return;
+                                    }
+                                    try {
+                                      setLoading(true);
+                                      await dbService.deleteSimulation(simId);
+                                      // Optimistic update
+                                      setSimulations(prev => prev.filter(s => s.id !== simId));
+                                      setLoading(false);
+                                    } catch (err: any) {
+                                      alert(`삭제 실패: ${err.message}`);
+                                      setLoading(false);
+                                      fetchData(); // Reset on failure
+                                    }
+                                  }
+                                }}
+                                className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -375,9 +426,15 @@ export default function AdminView() {
                     <button 
                       onClick={async () => {
                         if (confirm('정말 삭제하시겠습니까?')) {
-                          if (tab === 'personas') await dbService.deletePersona(item.id);
-                          else await dbService.deleteScenario(item.id);
-                          fetchData();
+                          try {
+                            setLoading(true);
+                            if (tab === 'personas') await dbService.deletePersona(item.id);
+                            else await dbService.deleteScenario(item.id);
+                            fetchData();
+                          } catch (err: any) {
+                            alert(`삭제 중 오류 발생: ${err.message}`);
+                            setLoading(false);
+                          }
                         }
                       }}
                       className="p-2 text-red-400 hover:bg-red-50 rounded"

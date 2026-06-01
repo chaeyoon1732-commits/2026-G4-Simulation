@@ -103,8 +103,10 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             )}
           </button>
           
-          <div className="mt-8 text-[10px] text-blue-300/50 uppercase tracking-[0.3em] font-bold">
-            Hyundai Motor Group Training System
+          <div className="mt-8">
+            <div className="text-[10px] text-blue-300/50 uppercase tracking-[0.3em] font-bold">
+              Hyundai Motor Group Training System
+            </div>
           </div>
         </motion.div>
       </motion.div>

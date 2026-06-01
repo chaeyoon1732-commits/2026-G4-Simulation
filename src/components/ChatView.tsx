@@ -232,6 +232,28 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       return;
     }
 
+    setIsLoading(true);
+    let evaluationData = undefined;
+
+    try {
+      // Get AI Analysis for the report
+      const analysisResponse = await fetch('/api/analyze-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          persona,
+          scenario,
+          history: messages
+        })
+      });
+
+      if (analysisResponse.ok) {
+        evaluationData = await analysisResponse.json();
+      }
+    } catch (err) {
+      console.error('Failed to get AI analysis report:', err);
+    }
+
     const simulationData: SimulationRecord = {
       userId: user.uid,
       userEmail: user.email || 'unknown',
@@ -247,7 +269,8 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       metrics,
       turnCount,
       isCompleted: turnCount >= 5 || isAuto,
-      timestamp: Date.now() // Will be updated by Firestore ServerTimestamp if using real SDK, but here we just need it for the report
+      timestamp: Date.now(),
+      evaluation: evaluationData
     };
 
     if (messages.length > 1) {
@@ -257,6 +280,8 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         console.error('Record save error:', err);
       }
     }
+    
+    setIsLoading(false);
     
     if (turnCount >= 5) {
       if (isAuto) {
