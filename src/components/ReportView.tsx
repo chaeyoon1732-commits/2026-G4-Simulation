@@ -278,25 +278,25 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   </p>
                </div>
 
-               <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-emerald-500">
-                 <div className="flex items-center gap-2 mb-3 text-emerald-700">
-                    <Zap className="w-5 h-5" />
-                    <span className="font-black text-sm">리더십 스타일 진단</span>
-                 </div>
-                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                   문제 중심의 질문 방식은 명확한 현상 파악에 도움이 되지만, {simulation.personaName}님 같은 관계 지향형 팀원에게는 압박감으로 작용했습니다. '비판'보다는 '지원' 중심의 언어 변환이 필요합니다.
-                 </p>
-               </div>
+                <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-emerald-500">
+                  <div className="flex items-center gap-2 mb-3 text-emerald-700">
+                     <Zap className="w-5 h-5" />
+                     <span className="font-black text-sm">리더십 스타일 진단</span>
+                  </div>
+                  <p className="text-sm text-slate-600 font-bold leading-relaxed">
+                    {simulation.evaluation?.leadership || `문제 중심의 질문 방식은 명확한 현상 파악에 도움이 되지만, ${simulation.personaName}님 같은 관계 지향형 팀원에게는 압박감으로 작용했습니다. '비판'보다는 '지원' 중심의 언어 변환이 필요합니다.`}
+                  </p>
+                </div>
 
-               <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-indigo-500">
-                 <div className="flex items-center gap-2 mb-3 text-indigo-700">
-                    <Target className="w-5 h-5" />
-                    <span className="font-black text-sm">팀원 니즈 파악 (Needs Identification)</span>
-                 </div>
-                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                    단위 업무량에 대한 불만보다는 '동료와의 형평성'과 '미래 역량 개발'에 대한 불안이 핵심 요구사항으로 파악됩니다. 이에 대한 명확한 지지 발언이 필요합니다.
-                 </p>
-               </div>
+                <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-indigo-500">
+                  <div className="flex items-center gap-2 mb-3 text-indigo-700">
+                     <Target className="w-5 h-5" />
+                     <span className="font-black text-sm">팀원 니즈 파악 (Needs Identification)</span>
+                  </div>
+                  <p className="text-sm text-slate-600 font-bold leading-relaxed">
+                     {simulation.evaluation?.needs || `단위 업무량에 대한 불만보다는 '동료와의 형평성'과 '미래 역량 개발'에 대한 불안이 핵심 요구사항으로 파악됩니다. 이에 대한 명확한 지지 발언이 필요합니다.`}
+                  </p>
+                </div>
             </div>
           </div>
 

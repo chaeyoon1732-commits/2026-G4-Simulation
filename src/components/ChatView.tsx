@@ -13,7 +13,8 @@ import {
   CheckCircle2, 
   Circle, 
   Lightbulb, 
-  Quote 
+  Quote,
+  FileText 
 } from 'lucide-react';
 import { 
   RadarChart, 
@@ -36,6 +37,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string>('초기 대기 중');
   const [metrics, setMetrics] = useState({ rapport: 50, analysis: 30, solution: 10, engagement: 40 });
   const [goals, setGoals] = useState([false, false, false]);
@@ -232,7 +234,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       return;
     }
 
-    setIsLoading(true);
+    setIsGeneratingReport(true);
     let evaluationData = undefined;
 
     try {
@@ -252,6 +254,8 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       }
     } catch (err) {
       console.error('Failed to get AI analysis report:', err);
+    } finally {
+      setIsGeneratingReport(false);
     }
 
     const simulationData: SimulationRecord = {
@@ -280,8 +284,6 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         console.error('Record save error:', err);
       }
     }
-    
-    setIsLoading(false);
     
     if (turnCount >= 5) {
       if (isAuto) {
@@ -361,7 +363,49 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       </aside>
 
       {/* Main Chat Area (MAXIMIZED) */}
-      <section className="flex-1 flex flex-col premium-card overflow-hidden bg-white shadow-2xl">
+      <section className="flex-1 flex flex-col premium-card overflow-hidden bg-white shadow-2xl relative">
+        <AnimatePresence>
+          {isGeneratingReport && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center"
+            >
+              <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl max-w-sm w-full space-y-8 border border-white/20">
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <div className="w-20 h-20 border-4 border-h-blue/10 border-t-[#002C5F] rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <FileText className="w-8 h-8 text-[#002C5F]" />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">면담 분석 리포트 생성 중</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed font-bold">
+                    리더님의 면담 발언 데이터와 팀원의 심리 반응을<br/>
+                    현대자동차 리더십 전문가 AI가 정밀 분석 중입니다.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex gap-1.5 justify-center">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span 
+                        key={i}
+                        animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.2 }}
+                        className="w-2.5 h-2.5 bg-[#002C5F] rounded-full"
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-300 font-bold uppercase tracking-[0.2em]">Data Analysis in Progress...</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-4">
              <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-bold text-[#002C5F] shadow-inner">
