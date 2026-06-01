@@ -40,9 +40,11 @@ export default function LoginView({ onLogin }: LoginViewProps) {
       if (error?.code === 'auth/operation-not-allowed') {
         alert('Google 로그인이 활성화되지 않았습니다. Firebase 콘솔(Authentication > 로그인 방법)에서 Google을 활성화해주세요.');
       } else if (error?.code === 'auth/admin-restricted-operation') {
-        alert('사용자 생성 권한이 제한되었습니다. Firebase 콘솔(프로젝트 ID: g4-simulation)에서 [Authentication > 설정 > 사용자 작업] 메뉴로 이동하여 "계정 만들기 허용"이 체크되어 있는지 확인해주세요.');
+        alert('사용자 생성 권한이 제한되었습니다. Firebase 콘솔(프로젝트 ID: g4-leader-simulation)에서 [Authentication > 설정 > 사용자 작업] 메뉴로 이동하여 "계정 만들기 허용"이 체크되어 있는지 확인해주세요.');
       } else if (error?.code === 'auth/popup-blocked') {
         alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업 허용 후 다시 시도해주세요.');
+      } else if (error?.code?.includes('api-key-not-valid')) {
+        alert('Firebase API 키가 유효하지 않습니다.\n\n해결 방법:\n1. AI Studio 우측 상단의 "Firebase" 버튼을 눌러 설정을 초기화해주세요.\n2. 브라우저 캐시를 삭제하거나 시크릿 모드에서 다시 시도해주세요.\n3. (관리자) firebase-applet-config.json 파일의 apiKey가 올바른지 확인해주세요.');
       } else if (error?.code === 'auth/network-request-failed') {
         const troubleshootingMsg = `
 [로그인 실패: 네트워크 오류 심층 분석]

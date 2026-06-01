@@ -1,10 +1,10 @@
 {
-  "projectId": "g4-simulation",
-  "appId": "1:167144762879:web:eb48abad9f063f47990bca",
-  "apiKey": "AIzaSyD76kNydUZ_QHG1hqLja991crDD45OjkQY",
-  "authDomain": "g4-simulation.firebaseapp.com",
+  "projectId": "g4-leader-simulation",
+  "appId": "1:932309621232:web:1e4b5c8bf8184aac1ee535",
+  "apiKey": "AIzaSyBgH2xFpHcFUTOg0HEbUhN7Ov8CcJSt0ug",
+  "authDomain": "g4-leader-simulation.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-cc3e73a7-2da8-4242-8462-3f90ebf91e5f",
-  "storageBucket": "g4-simulation.firebasestorage.app",
-  "messagingSenderId": "167144762879",
+  "storageBucket": "g4-leader-simulation.firebasestorage.app",
+  "messagingSenderId": "932309621232",
   "measurementId": ""
 }
