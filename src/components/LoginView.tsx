@@ -33,9 +33,11 @@ export default function LoginView({ onLogin }: LoginViewProps) {
       } else if (error?.code === 'auth/admin-restricted-operation') {
         alert('사용자 생성 권한이 제한되었습니다. Firebase 콘솔(프로젝트 ID: g4-simulation)에서 [Authentication > 설정 > 사용자 작업] 메뉴로 이동하여 "계정 만들기 허용"이 체크되어 있는지 확인해주세요.');
       } else if (error?.code === 'auth/popup-blocked') {
-        alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
+        alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업 허용 후 다시 시도해주세요.');
+      } else if (error?.code === 'auth/network-request-failed') {
+        alert('네트워크 요청에 실패했습니다 (auth/network-request-failed).\n\n원인 및 해결방법:\n1. 인터넷 연결 상태를 확인해주세요.\n2. 브라우저의 광고 차단(AdBlock 등) 확장 프로그램을 비활성화해주세요.\n3. [중요] Firebase 콘솔(Authentication > 설정 > 승인된 도메인)에 현재 접속 중인 도메인(cloudfront.run.app 등)이 추가되어 있는지 확인해주세요.\n4. 현재 AI Studio의 iFrame 내에서 실행 중이라면, 상단의 [Open in new tab] 버튼을 눌러 새 탭에서 실행해 보세요.\n5. 회사 네트워크(보안망)를 사용 중이라면 개인 네트워크로 시도해보세요.');
       } else {
-        alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}`);
+        alert(`로그인 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}\n(Error Code: ${error?.code})`);
       }
     } finally {
       setIsLoading(false);
