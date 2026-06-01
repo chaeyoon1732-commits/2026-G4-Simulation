@@ -96,12 +96,24 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
 
         if (!response.ok) {
           const contentType = response.headers.get('content-type');
+          let serverError = '알 수 없는 서버 오류가 발생했습니다.';
           if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            setMessages([{ role: 'assistant', content: `[오류] ${errorData.error || 'Unknown error'}`, emotion: '오류', timestamp: Date.now() }]);
-          } else {
-            setMessages([{ role: 'assistant', content: `[통신 오류] 서버에서 올바르지 않은 응답이 왔습니다. (Status: ${response.status})`, emotion: '오류', timestamp: Date.now() }]);
+            try {
+              const errorData = await response.json();
+              serverError = errorData.error || serverError;
+            } catch (e) {
+              serverError = `JSON 파싱 오류 (${response.status})`;
+            }
           }
+          setMessages([{ role: 'assistant', content: `[오류] ${serverError}`, emotion: '오류', timestamp: Date.now() }]);
+          return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error("Non-JSON response received:", text.substring(0, 500));
+          setMessages([{ role: 'assistant', content: `[통신 오류] 서버에서 올바르지 않은 응답이 왔습니다. (HTML/Text 응답 수신됨)`, emotion: '오류', timestamp: Date.now() }]);
           return;
         }
 
@@ -161,11 +173,24 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         let errorMsg = `서버 오류가 발생했습니다. (Status: ${response.status})`;
         
         if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          errorMsg = errorData.error || errorMsg;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorMsg;
+          } catch (e) {
+            errorMsg = `데이터 형식 오류 (${response.status})`;
+          }
         }
         
         setMessages(prev => [...prev, { role: 'assistant', content: `[오류] ${errorMsg}`, emotion: '오류', timestamp: Date.now() }]);
+        setIsLoading(false);
+        return;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error("Non-JSON response in chat submit:", text.substring(0, 500));
+        setMessages(prev => [...prev, { role: 'assistant', content: `[통신 오류] 서버 응답이 올바르지 않습니다. (HTML/Text)`, emotion: '오류', timestamp: Date.now() }]);
         setIsLoading(false);
         return;
       }

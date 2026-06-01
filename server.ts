@@ -97,10 +97,10 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-3.5-flash (with ThinkingLevel.LOW)');
+      console.log('Generating content with model: gemini-3.5-flash (Low Thinking Level for high availability)');
       
-      // Fundamental solution: Retry logic with exponential backoff for 503/429 errors
-      const generateWithRetry = async (retries = 3, initialDelay = 1000) => {
+      // Fundamental solution: Enhanced retry logic calibrated to stay within overall timeout (~25s total)
+      const generateWithRetry = async (retries = 5, initialDelay = 800) => {
         for (let i = 0; i < retries; i++) {
           try {
             return await ai.models.generateContent({
@@ -113,16 +113,25 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
               }
             });
           } catch (err: any) {
-            const isRetryable = err?.status === 503 || err?.code === 503 || err?.status === 429 || err?.code === 429 || 
-                               err.message?.includes('503') || err.message?.includes('429') || err.message?.includes('overloaded');
+            // Log the error detail for debugging
+            const statusCode = err?.status || err?.code || 0;
+            const message = err.message?.toLowerCase() || '';
+            
+            // 503 (Unavailable), 429 (Rate Limit), 500 (Internal), or "overloaded" messages
+            const isRetryable = statusCode === 503 || statusCode === 429 || statusCode === 500 ||
+                               message.includes('overloaded') ||
+                               message.includes('service unavailable') ||
+                               message.includes('high demand') ||
+                               message.includes('deadline exceeded');
             
             if (isRetryable && i < retries - 1) {
-              const delay = initialDelay * Math.pow(2, i);
-              console.warn(`Gemini API error (${err.status || err.code}). Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
+              // Exponential backoff with jitter
+              const delay = (initialDelay * Math.pow(1.9, i)) + Math.floor(Math.random() * 400);
+              console.warn(`Gemini API transient error (${statusCode}). Retrying ${i + 1}/${retries} in ${Math.round(delay)}ms...`);
               await new Promise(resolve => setTimeout(resolve, delay));
               continue;
             }
-            throw err;
+            throw err; // Rethrow if not retryable or max retries reached
           }
         }
       };
@@ -173,16 +182,16 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       let status = 500;
 
       if (isRateLimit) {
-        errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요. (일일 할당량 또는 초당 요청 제한에 도달했을 수 있습니다)';
+        errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요. (429 Rate Limit)';
         status = 429;
       } else if (isServiceUnavailable) {
-        errorMessage = '현재 AI 모델 서버의 부하가 높습니다. 지능형 재시도 로직이 작동 중이나, 계속될 경우 잠시 후 다시 시도해 주세요. (503 Service Unavailable)';
+        errorMessage = '현재 구글 AI 서버에 일시적으로 많은 요청이 몰리고 있습니다. (503 Overloaded) 유료 계정 결제 여부와 상관없이 해당 모델 리전에서 발생하는 현상입니다. 수 초 후 다시 시도해 주세요.';
         status = 503;
       } else if (isUnauthenticated) {
-        errorMessage = 'API 키가 유효하지 않습니다. 유료 계정의 키가 Settings -> Secrets에 정확히 입력되었는지 확인해주세요.';
+        errorMessage = 'API 인증 오류가 발생했습니다. Settings -> Secrets에서 유료 계정의 API 키가 올바르게 입력되었는지 확인해주세요.';
         status = 401;
       } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 찾을 수 없습니다. (Model: gemini-3.5-flash)';
+        errorMessage = '선택한 AI 모델을 사용할 수 없습니다. (Model: gemini-3.5-flash)';
         status = 404;
       }
       
