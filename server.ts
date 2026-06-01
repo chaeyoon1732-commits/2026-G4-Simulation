@@ -55,6 +55,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/chat', validateApiKey, async (req, res) => {
+  console.log('[API Chat] Incoming request from User-Agent:', req.headers['user-agent']);
   try {
     const { persona, scenario, history } = req.body;
 
@@ -102,39 +103,30 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       const ai = getAiClient();
       console.log('Generating content with model: gemini-3.5-flash (Low Thinking Level for high availability)');
       
-      // Fundamental solution: Enhanced retry logic calibrated to stay within overall timeout (~25s total)
-      const generateWithRetry = async (retries = 5, initialDelay = 800) => {
+      // Fundamental solution: Calibrated to stay within overall timeout (~25s total)
+      const generateWithRetry = async (retries = 3, initialDelay = 1000) => {
         for (let i = 0; i < retries; i++) {
           try {
             return await ai.models.generateContent({
               model: 'gemini-3.5-flash',
               contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-              config: {
-                thinkingConfig: {
-                  thinkingLevel: ThinkingLevel.LOW
-                }
-              }
             });
           } catch (err: any) {
-            // Log the error detail for debugging
             const statusCode = err?.status || err?.code || 0;
             const message = err.message?.toLowerCase() || '';
             
-            // 503 (Unavailable), 429 (Rate Limit), 500 (Internal), or "overloaded" messages
             const isRetryable = statusCode === 503 || statusCode === 429 || statusCode === 500 ||
                                message.includes('overloaded') ||
                                message.includes('service unavailable') ||
-                               message.includes('high demand') ||
                                message.includes('deadline exceeded');
             
             if (isRetryable && i < retries - 1) {
-              // Exponential backoff with jitter
-              const delay = (initialDelay * Math.pow(1.9, i)) + Math.floor(Math.random() * 400);
-              console.warn(`Gemini API transient error (${statusCode}). Retrying ${i + 1}/${retries} in ${Math.round(delay)}ms...`);
+              const delay = (initialDelay * Math.pow(2, i)) + Math.floor(Math.random() * 500);
+              console.warn(`[Gemini Retry] ${i + 1}/${retries} - Status: ${statusCode}, Delay: ${Math.round(delay)}ms`);
               await new Promise(resolve => setTimeout(resolve, delay));
               continue;
             }
-            throw err; // Rethrow if not retryable or max retries reached
+            throw err;
           }
         }
       };
@@ -201,8 +193,8 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       res.status(status).json({ 
         error: errorMessage, 
         details: innerError.message, 
-        code: innerError.code,
-        status: innerError.status 
+        code: innerError.code || innerError.status,
+        stack: process.env.NODE_ENV !== 'production' ? innerError.stack : undefined
       });
     }
   } catch (outerError: any) {
@@ -266,7 +258,11 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
     res.json(JSON.parse(responseText));
   } catch (error: any) {
     console.error('Report analysis error:', error);
-    res.status(500).json({ error: '리포트 분석 중 오류가 발생했습니다.', details: error.message });
+    res.status(500).json({ 
+      error: '리포트 분석 중 오류가 발생했습니다.', 
+      details: error.message,
+      code: error.status || error.code 
+    });
   }
 });
 

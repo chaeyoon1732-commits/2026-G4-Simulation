@@ -103,6 +103,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
             try {
               const errorData = await response.json();
               serverError = errorData.error || serverError;
+              if (errorData.details) serverError += `\n(상세: ${errorData.details})`;
             } catch (e) {
               serverError = `JSON 파싱 오류 (${response.status})`;
             }
@@ -178,6 +179,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
           try {
             const errorData = await response.json();
             errorMsg = errorData.error || errorMsg;
+            if (errorData.details) errorMsg += `\n(상세: ${errorData.details})`;
           } catch (e) {
             errorMsg = `데이터 형식 오류 (${response.status})`;
           }

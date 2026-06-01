@@ -36,37 +36,44 @@ export default function LoginView({ onLogin }: LoginViewProps) {
         });
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('Login error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        customData: error.customData
+      });
+
       if (error?.code === 'auth/operation-not-allowed') {
         alert('Google 로그인이 활성화되지 않았습니다. Firebase 콘솔(Authentication > 로그인 방법)에서 Google을 활성화해주세요.');
       } else if (error?.code === 'auth/admin-restricted-operation') {
         alert('사용자 생성 권한이 제한되었습니다. Firebase 콘솔(프로젝트 ID: g4-leader-simulation)에서 [Authentication > 설정 > 사용자 작업] 메뉴로 이동하여 "계정 만들기 허용"이 체크되어 있는지 확인해주세요.');
       } else if (error?.code === 'auth/popup-blocked') {
         alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업 허용 후 다시 시도해주세요.');
-      } else if (error?.code?.includes('api-key-not-valid')) {
-        alert('Firebase API 키가 유효하지 않습니다.\n\n해결 방법:\n1. AI Studio 우측 상단의 "Firebase" 버튼을 눌러 설정을 초기화해주세요.\n2. 브라우저 캐시를 삭제하거나 시크릿 모드에서 다시 시도해주세요.\n3. (관리자) firebase-applet-config.json 파일의 apiKey가 올바른지 확인해주세요.');
-      } else if (error?.code === 'auth/network-request-failed') {
+      } else if (error?.code?.includes('api-key-not-valid') || error?.code === 'auth/network-request-failed') {
+        const debugInfo = `
+[심층 분석 데이터]
+- Error Code: ${error?.code}
+- Project ID: ${auth.app.options.projectId}
+- Origin: ${window.location.origin}
+- Cookies Enabled: ${navigator.cookieEnabled ? 'Yes' : 'No'}
+- UserAgent: ${navigator.userAgent.slice(0, 60)}...
+        `;
+        
         const troubleshootingMsg = `
-[로그인 실패: 네트워크 오류 심층 분석]
+[사내망/회사 노트북 전용 해결 가이드]
 
-현재 사내망/회사 노트북에서 갑자기 안 되는 경우, 다음 3가지가 핵심 원인일 가능성이 99%입니다:
+개인 노트북은 되고 회사 노트북만 안 된다면, 99.9% 확률로 '회사 보안 정책'이 구글 인증 요청을 차단하거나 변조하고 있기 때문입니다.
 
-1. 승인된 도메인 누락 (최근 배포/도메인 변경):
-   Firebase 콘솔(Authentication > 설정 > 승인된 도메인)에 아래 주소들이 모두 추가되어 있는지 확인해주세요:
-   - localhost
-   - ais-dev-4tnj6o5uvzs6iqmjehd72s-317085499485.asia-northeast1.run.app
-   - ais-pre-4tnj6o5uvzs6iqmjehd72s-317085499485.asia-northeast1.run.app
+1. 가장 유력한 원인: 'Referer(참조 주소)' 정보 삭제/변조
+   - 회사 보안 프로그램(Zscaler, DLP 등)이 보안상의 이유로 브라우저가 보내는 '지금 접속 중인 주소' 정보를 지워버리면 구글이 "누군지 모르니 허락 못 해"라며 거절합니다.
 
-2. 사내 보안 솔루션 (Zscaler, DLP 등) 재동작:
-   잘 되다가 안 되는 경우, 보안 프로그램이 구글 인증 도메인(identitytoolkit.googleapis.com)을 실시간으로 차단하기 시작했을 수 있습니다.
+2. 해결 시도 순서 (중요):
+   ① 상단 [Open in new tab] 클릭: iFrame을 벗어나 독립 창에서 시도하면 차단 확률이 줄어듭니다.
+   ② 다른 브라우저 사용: Chrome에서 안 되면 Edge나 Firefox로 시도하세요.
+   ③ '쿠키' 설정 확인: 브라우저 설정에서 "모든 쿠키 허용" 또는 "타사 쿠키 허용"으로 변경해보세요.
+   ④ 사내 VPN 해제: VPN이 켜져 있다면 반드시 끄고 시도하세요.
 
-3. 브라우저 캐시 및 인스턴스 꼬임:
-   기존 로그인 시도 기록이 브라우저에 잘못 남아있을 수 있습니다.
-
-[긴급 해결 시도 방법]:
-① 화면 우측 상단의 "Open in new tab"을 눌러 '독립 창'에서 실행 (iFrame 차단 회피)
-② 크롬 시크릿 모드(Ctrl+Shift+N)에서 접속하여 재시도
-③ 핸드폰 테더링(핫스팟)으로 노트북을 연결하여 시도 (보안망 우회)
+${debugInfo}
         `;
         alert(troubleshootingMsg);
       } else {
