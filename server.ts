@@ -100,107 +100,40 @@ ${isFirstMessage ? `8. 시작 방식: 현재 상황에 이미 처해있는 상�
 ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTitle : persona.name}: ${m.content}`).join('\n') : ''}
 `;
 
+    const ai = getAiClient();
+    console.log('Generating streaming content with model: gemini-1.5-flash');
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
     try {
-      const ai = getAiClient();
-      console.log('Generating content with model: gemini-1.5-flash');
-      
-      // Fundamental solution: Calibrated to stay within overall timeout (~25s total)
-      const generateWithRetry = async (retries = 3, initialDelay = 1000) => {
-        for (let i = 0; i < retries; i++) {
-          try {
-            return await ai.models.generateContent({
-              model: 'gemini-1.5-flash',
-              contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-            });
-          } catch (err: any) {
-            const statusCode = err?.status || err?.code || 0;
-            const message = err.message?.toLowerCase() || '';
-            
-            const isRetryable = statusCode === 503 || statusCode === 429 || statusCode === 500 ||
-                               message.includes('overloaded') ||
-                               message.includes('service unavailable') ||
-                               message.includes('deadline exceeded');
-            
-            if (isRetryable && i < retries - 1) {
-              const delay = (initialDelay * Math.pow(2, i)) + Math.floor(Math.random() * 500);
-              console.warn(`[Gemini Retry] ${i + 1}/${retries} - Status: ${statusCode}, Delay: ${Math.round(delay)}ms`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            }
-            throw err;
-          }
-        }
-      };
-
-      const response = await generateWithRetry();
-      if (!response) throw new Error('No response from AI');
-      
-      const text = response.text || '';
-      console.log('Received AI response length:', text.length);
-      
-      // Extract emotion from the text if present
-      const emotionMatch = text.match(/\[감정:\s?([^\]]+)\]/);
-      const emotion = emotionMatch ? emotionMatch[1] : '중립';
-      
-      // Extract metrics/goals if present
-      const analysisMatch = text.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
-      let analysis = {
-        metrics: { rapport: 50, analysis: 30, solution: 10, engagement: 40 },
-        goals: [false, false, false]
-      };
-
-      if (analysisMatch) {
-        try {
-          analysis = JSON.parse(analysisMatch[1]);
-        } catch (e) {
-          console.error("Failed to parse analysis JSON:", e);
-        }
-      }
-
-      let cleanText = text.replace(/\[감정:\s?[^\]]+\]/g, '')
-                          .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
-                          .replace(/\s+/g, ' ')
-                          .trim();
-
-      res.json({ content: cleanText, emotion, analysis });
-    } catch (innerError: any) {
-      console.error('Gemini API Details Error:', innerError);
-      
-      // Log full error for debugging
-      console.log('Full innerError object:', JSON.stringify(innerError, Object.getOwnPropertyNames(innerError)));
-
-      const isRateLimit = innerError?.status === 429 || innerError?.code === 429 || innerError.message?.includes('429') || innerError.message?.includes('quota');
-      const isServiceUnavailable = innerError?.status === 503 || innerError?.code === 503 || innerError.message?.includes('503') || innerError.message?.includes('overloaded');
-      const isUnauthenticated = innerError?.status === 401 || innerError?.code === 401 || innerError.message?.includes('401');
-      const isModelNotFound = innerError?.status === 404 || innerError?.code === 404 || innerError.message?.includes('404');
-      
-      let errorMessage = 'AI 응답 생성 중 오류가 발생했습니다.';
-      let status = 500;
-
-      if (isRateLimit) {
-        errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요. (429 Rate Limit)';
-        status = 429;
-      } else if (isServiceUnavailable) {
-        errorMessage = '현재 구글 AI 서버에 일시적으로 많은 요청이 몰리고 있습니다. (503 Overloaded) 수 초 후 다시 시도해 주세요.';
-        status = 503;
-      } else if (isUnauthenticated || (innerError.message && innerError.message.includes('API key not valid'))) {
-        errorMessage = 'API 인증 오류가 발생했습니다. AI Studio 우측 상단 [Settings] -> [Secrets] 메뉴에 등록한 GEMINI_API_KEY가 올바른지 다시 한번 확인해주세요. 복사 과정에서 앞뒤에 공백이나 줄바꿈 문자가 포함되지 않았는지 확인하는 것이 좋습니다.';
-        status = 401;
-      } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 사용할 수 없습니다. (Model: gemini-1.5-flash)';
-        status = 404;
-      }
-      
-      res.status(status).json({ 
-        error: errorMessage, 
-        details: innerError.message, 
-        code: innerError.code || innerError.status,
-        stack: process.env.NODE_ENV !== 'production' ? innerError.stack : undefined
+      const result = await ai.models.generateContentStream({
+        model: 'gemini-1.5-flash',
+        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
+
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) {
+          res.write(text);
+        }
+      }
+      res.end();
+    } catch (innerError: any) {
+      console.error('Streaming error:', innerError);
+      // If headers already sent, we can't send a proper JSON error response
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'AI 응답 생성 중 오류가 발생했습니다.', details: innerError.message });
+      } else {
+        res.write(`\n[ERROR: ${innerError.message}]`);
+        res.end();
+      }
     }
   } catch (outerError: any) {
-    console.error('API Chat Handler Error (Outer):', outerError);
-    res.status(500).json({ error: '서버 내부 오류가 발생했습니다.', details: outerError.message });
+    console.error('Outer handler error:', outerError);
+    if (!res.headersSent) {
+      res.status(500).json({ error: '서버 내부 오류가 발생했습니다.' });
+    }
   }
 });
 

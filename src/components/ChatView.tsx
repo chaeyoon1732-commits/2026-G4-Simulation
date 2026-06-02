@@ -97,41 +97,69 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         });
 
         if (!response.ok) {
-          const contentType = response.headers.get('content-type');
-          let serverError = '알 수 없는 서버 오류가 발생했습니다.';
-          if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json().catch(() => ({ error: '알 수 없는 오류' }));
+          setMessages([{ role: 'assistant', content: `[오류] ${errorData.error}`, emotion: '오류', timestamp: Date.now() }]);
+          return;
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        
+        const assistantMessage: Message = { role: 'assistant', content: '', emotion: '생각 중...', timestamp: Date.now() };
+        setMessages([assistantMessage]);
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
+            
+            // UI display text (filter out the metadata tags)
+            let displayText = fullText
+              .replace(/\[감정:\s?[^\]]*\]?/g, '')
+              .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}?\]?/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            setMessages([{ 
+              role: 'assistant', 
+              content: displayText, 
+              emotion: assistantMessage.emotion, 
+              timestamp: assistantMessage.timestamp 
+            }]);
+          }
+
+          // Final processing
+          const emotionMatch = fullText.match(/\[감정:\s?([^\]]+)\]/);
+          const emotion = emotionMatch ? emotionMatch[1] : '중립';
+          
+          const analysisMatch = fullText.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
+          if (analysisMatch) {
             try {
-              const errorData = await response.json();
-              serverError = errorData.error || serverError;
-              if (errorData.details) serverError += `\n(상세: ${errorData.details})`;
+              const analysis = JSON.parse(analysisMatch[1]);
+              setMetrics(analysis.metrics);
+              setGoals(analysis.goals);
             } catch (e) {
-              serverError = `JSON 파싱 오류 (${response.status})`;
+              console.error("Analysis parse error", e);
             }
           }
-          setMessages([{ role: 'assistant', content: `[오류] ${serverError}`, emotion: '오류', timestamp: Date.now() }]);
-          return;
-        }
 
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          console.error("Non-JSON response received:", text.substring(0, 500));
-          setMessages([{ role: 'assistant', content: `[통신 오류] 서버에서 올바르지 않은 응답이 왔습니다. (HTML/Text 응답 수신됨)`, emotion: '오류', timestamp: Date.now() }]);
-          return;
-        }
+          let finalDisplayText = fullText
+            .replace(/\[감정:\s?[^\]]+\]/g, '')
+            .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
 
-        const data = await response.json();
-        
-        if (data.error) {
-          setMessages([{ role: 'assistant', content: `[오류] ${data.error}`, emotion: '오류', timestamp: Date.now() }]);
-          return;
-        }
-
-        setMessages([{ role: 'assistant', content: data.content, emotion: data.emotion, timestamp: Date.now() }]);
-        setCurrentEmotion(data.emotion);
-        if (data.analysis) {
-          setMetrics(data.analysis.metrics);
-          setGoals(data.analysis.goals);
+          setMessages([{ 
+            role: 'assistant', 
+            content: finalDisplayText, 
+            emotion: emotion, 
+            timestamp: assistantMessage.timestamp 
+          }]);
+          setCurrentEmotion(emotion);
         }
       } catch (error) {
         console.error('Failed to start chat:', error);
@@ -172,50 +200,75 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       });
 
       if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-        let errorMsg = `서버 오류가 발생했습니다. (Status: ${response.status})`;
+        const errorData = await response.json().catch(() => ({ error: '서버 오류' }));
+        setMessages(prev => [...prev, { role: 'assistant', content: `[오류] ${errorData.error}`, emotion: '오류', timestamp: Date.now() }]);
+        setIsLoading(false);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      
+      const assistantMessage: Message = { role: 'assistant', content: '', emotion: '입력 중...', timestamp: Date.now() };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+          
+          let displayText = fullText
+            .replace(/\[감정:\s?[^\]]*\]?/g, '')
+            .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}?\]?/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { 
+              ...assistantMessage, 
+              content: displayText 
+            };
+            return updated;
+          });
+        }
+
+        const emotionMatch = fullText.match(/\[감정:\s?([^\]]+)\]/);
+        const emotion = emotionMatch ? emotionMatch[1] : currentEmotion;
         
-        if (contentType && contentType.includes('application/json')) {
+        const analysisMatch = fullText.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
+        if (analysisMatch) {
           try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
-            if (errorData.details) errorMsg += `\n(상세: ${errorData.details})`;
+            const analysis = JSON.parse(analysisMatch[1]);
+            setMetrics(analysis.metrics);
+            setGoals(analysis.goals);
           } catch (e) {
-            errorMsg = `데이터 형식 오류 (${response.status})`;
+            console.error("Analysis parse error", e);
           }
         }
-        
-        setMessages(prev => [...prev, { role: 'assistant', content: `[오류] ${errorMsg}`, emotion: '오류', timestamp: Date.now() }]);
-        setIsLoading(false);
-        return;
+
+        let finalDisplayText = fullText
+          .replace(/\[감정:\s?[^\]]+\]/g, '')
+          .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { 
+            ...assistantMessage, 
+            content: finalDisplayText,
+            emotion: emotion
+          };
+          return updated;
+        });
+        setCurrentEmotion(emotion);
       }
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error("Non-JSON response in chat submit:", text.substring(0, 500));
-        setMessages(prev => [...prev, { role: 'assistant', content: `[통신 오류] 서버 응답이 올바르지 않습니다. (HTML/Text)`, emotion: '오류', timestamp: Date.now() }]);
-        setIsLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        setMessages(prev => [...prev, { role: 'assistant', content: `[오류] ${data.error}`, emotion: '오류', timestamp: Date.now() }]);
-        setIsLoading(false);
-        return;
-      }
-
-      const assistantMessage: Message = { role: 'assistant', content: data.content, emotion: data.emotion, timestamp: Date.now() };
-      setMessages(prev => [...prev, assistantMessage]);
-      setCurrentEmotion(data.emotion);
-      if (data.analysis) {
-        setMetrics(data.analysis.metrics);
-        setGoals(data.analysis.goals);
-      }
-
-      // Explicit completion check at 10 turns
       if (turnCount + 1 >= 10) {
         setTimeout(() => {
           alert('최대 대화 턴(10회)에 도달했습니다. 시뮬레이션을 종료하고 리포트를 확인합니다.');
