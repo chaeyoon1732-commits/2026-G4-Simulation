@@ -321,95 +321,103 @@ export default function AdminView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {simulations.slice(0, 20).map((sim) => {
-                      const avgScore = sim.metrics ? Math.round((sim.metrics.rapport + sim.metrics.analysis + sim.metrics.solution + sim.metrics.engagement) / 4) : 0;
-                      let dateStr = 'Just now';
-                      try {
-                        if (sim.timestamp?.toDate) {
-                          dateStr = new Date(sim.timestamp.toDate()).toLocaleString();
-                        } else if (sim.timestamp) {
-                          dateStr = new Date(sim.timestamp as any).toLocaleString();
+                    {simulations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-bold italic">
+                          기록된 시뮬레이션 데이터가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      simulations.slice(0, 20).map((sim) => {
+                        const avgScore = sim.metrics ? Math.round((sim.metrics.rapport + sim.metrics.analysis + sim.metrics.solution + sim.metrics.engagement) / 4) : 0;
+                        let dateStr = 'Just now';
+                        try {
+                          if (sim.timestamp?.toDate) {
+                            dateStr = new Date(sim.timestamp.toDate()).toLocaleString();
+                          } else if (sim.timestamp) {
+                            dateStr = new Date(sim.timestamp as any).toLocaleString();
+                          }
+                        } catch (e) {
+                          console.warn('Timestamp render error', e);
                         }
-                      } catch (e) {
-                        console.warn('Timestamp render error', e);
-                      }
 
-                      return (
-                        <tr key={sim.id} className="hover:bg-slate-50 transition-all">
-                          <td className="px-6 py-4 font-medium text-slate-400">
-                            {dateStr}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-800">{sim.userName}</div>
-                            <div className="text-[10px] text-blue-600 font-bold">{sim.userAffiliation} / {sim.userGroup}</div>
-                            <div className="text-[10px] text-slate-400 mt-0.5">{sim.userEmail}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-h-blue">{sim.personaName}</div>
-                            <div className="text-[10px] text-slate-400 truncate max-w-[150px]">{sim.scenarioTitle}</div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="font-bold text-slate-700">{sim.turnCount || sim.messages.length} Turns</div>
-                            <div className={`text-lg font-black ${avgScore > 70 ? 'text-green-600' : avgScore > 40 ? 'text-orange-500' : 'text-red-500'}`}>
-                              {avgScore}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-bold text-[10px] w-fit">
-                                {sim.finalEmotion}
-                              </span>
-                              {sim.isCompleted ? (
-                                <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-lg font-bold text-[10px] w-fit">
-                                  COMPLETED
+                        return (
+                          <tr key={sim.id} className="hover:bg-slate-50 transition-all">
+                            <td className="px-6 py-4 font-medium text-slate-400">
+                              {dateStr}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-800">{sim.userName}</div>
+                              <div className="text-[10px] text-blue-600 font-bold">{sim.userAffiliation} / {sim.userGroup}</div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">{sim.userEmail}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-h-blue">{sim.personaName}</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[150px]">{sim.scenarioTitle}</div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="font-bold text-slate-700">{sim.turnCount || sim.messages.length} Turns</div>
+                              <div className={`text-lg font-black ${avgScore > 70 ? 'text-green-600' : avgScore > 40 ? 'text-orange-500' : 'text-red-500'}`}>
+                                {avgScore}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg font-bold text-[10px] w-fit">
+                                  {sim.finalEmotion}
                                 </span>
-                              ) : (
-                                <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] w-fit">
-                                  DROPPED
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex justify-center gap-1">
-                              <button 
-                                onClick={() => setSelectedSimulation(sim)}
-                                className="text-slate-400 hover:text-h-blue p-2 hover:bg-slate-100 rounded-lg transition-all"
-                                title="상세보기"
-                              >
-                                <Maximize2 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={async () => {
-                                  if (confirm('이 시뮬레이션 기록을 삭제하시겠습니까?')) {
-                                    const simId = sim.id;
-                                    if (!simId) {
-                                      alert('삭제 가능한 ID가 없습니다.');
-                                      return;
+                                {sim.isCompleted ? (
+                                  <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-lg font-bold text-[10px] w-fit">
+                                    COMPLETED
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] w-fit">
+                                    DROPPED
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex justify-center gap-1">
+                                <button 
+                                  onClick={() => setSelectedSimulation(sim)}
+                                  className="text-slate-400 hover:text-h-blue p-2 hover:bg-slate-100 rounded-lg transition-all"
+                                  title="상세보기"
+                                >
+                                  <Maximize2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={async () => {
+                                    if (confirm('이 시뮬레이션 기록을 삭제하시겠습니까?')) {
+                                      const simId = sim.id;
+                                      if (!simId) {
+                                        alert('삭제 가능한 ID가 없습니다.');
+                                        return;
+                                      }
+                                      try {
+                                        setLoading(true);
+                                        await dbService.deleteSimulation(simId);
+                                        // Optimistic update
+                                        setSimulations(prev => prev.filter(s => s.id !== simId));
+                                        setLoading(false);
+                                      } catch (err: any) {
+                                        alert(`삭제 실패: ${err.message}`);
+                                        setLoading(false);
+                                        fetchData(); // Reset on failure
+                                      }
                                     }
-                                    try {
-                                      setLoading(true);
-                                      await dbService.deleteSimulation(simId);
-                                      // Optimistic update
-                                      setSimulations(prev => prev.filter(s => s.id !== simId));
-                                      setLoading(false);
-                                    } catch (err: any) {
-                                      alert(`삭제 실패: ${err.message}`);
-                                      setLoading(false);
-                                      fetchData(); // Reset on failure
-                                    }
-                                  }
-                                }}
-                                className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
-                                title="삭제"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                                  }}
+                                  className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
+                                  title="삭제"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -127,7 +127,14 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
           continue;
         }
         if (!res.headersSent) {
-          res.status(500).json({ error: 'AI Error', details: message });
+          let errorMsg = 'AI Error';
+          console.error(`[AI Error] Status: ${code}, Message: ${message}`);
+          if (message.includes('api key not valid') || message.includes('api_key_invalid')) {
+            errorMsg = '유효하지 않은 API 키입니다. Settings -> Secrets에서 키를 확인해주세요.';
+          } else if (code === 503 || code === 429) {
+            errorMsg = 'AI 서비스 과부하로 인해 잠시 후 다시 시도해주세요.';
+          }
+          res.status(500).json({ error: errorMsg, details: message });
         } else {
           res.write(`\n\n[오류: AI 서비스 일시 지연]`);
           res.end();
@@ -146,7 +153,7 @@ app.post('/api/report', validateApiKey, async (req, res) => {
     const { persona, scenario, history } = req.body;
     const systemPrompt = `
 귀하는 현대자동차 리서치/코칭 분야의 '마스터 등급' AI 리더십 분석 전문가입니다. 
-단순 대화 요약이 아닌, 사용자의 '무의식적인 말투', '단어 선택의 패턴', '공감의 깊이'를 데이터 기반으로 해부하여 리포트를 작성하세요.
+단순 대화 요약이 아닌, 코칭 결과에 기반하여 사용자의 '무의식적인 말투', '단어 선택의 패턴', '공감의 깊이'를 데이터 기반으로 해부하여 리포트를 작성하세요.
 
 [시나리오 context]
 - 제목: ${scenario.title}
@@ -159,7 +166,7 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
 [리포트 작성 엄격 규칙]
 1. 인용문 중심 분석: 모든 '강점'과 '개선점'에는 대화 로그에서 사용자가 실제로 한 말(따옴표 "")을 반드시 포함하고, 그 말이 상대방에게 준 심리적 타격을 분석하세요.
 2. 립서비스 금지: "잘했습니다" 같은 모호한 칭찬은 배제합니다. "리더가 ~라고 질문한 것은 개방형 질문으로서 상대방의 본심을 끌어내는 데 기여했습니다"와 같이 분석하세요.
-3. 실전 스크립트 제공: 액션 플랜에는 구체적인 대사(Script)를 상황별로 제공하세요.
+3. 실전 면담 스킬 전수: 액션 플랜에는 '면담 스킬 제언' 섹션을 강화하여, 구체적인 개선 발언과 연습용 스크립트(Script)를 상황별로 제공하세요. 특히, 사용자가 시뮬레이션 중 노출한 '부정적 화법 패턴'을 정확히 분석하고, 이를 현대자동차 현장 맥락에 맞는 '긍정적 대체 스크립트'로 변환하여 제시해야 합니다.
 4. 직무 밀착 솔루션: ${persona.division} 부문의 실제 현장 고충(영업 실적, CS 만족도, 정비 공임 등)과 연결된 리더십 비전을 제시하세요.
 
 반드시 다음 JSON 형식을 100% 준수하여 답변하세요. (JSON 외 텍스트 포함 시 시스템 오류 발생)
@@ -173,6 +180,24 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
   "improvements": "가장 아쉬웠던 발언 인용 및 그 발언을 들었을 때 팀원이 느꼈을 감정의 원인 분석",
   "actionPlan": {
     "quote": "다음 대화 재개 시 상대방의 마음을 열 수 있는 추천 스크립트",
+    "interviewSkill": "이 사용자를 위한 맞춤형 면담 스킬 제언 (예: 개방형 질문법, 비폭력 대화, I-Message 등 구체적 명칭 포함)",
+    "negativePatterns": [
+      {
+        "pattern": "자신도 모르게 반복한 부정적 화법 패턴 명칭",
+        "actualQuote": "해당 패턴이 나타난 실제 대화 인용",
+        "impact": "이 화법이 팀원(현대차 직원)에게 준 부정적 심리 효과",
+        "replacementScripts": [
+          "현대자동차 현장 맞춤형 긍정 대체 스크립트 1",
+          "현대자동차 현장 맞춤형 긍정 대체 스크립트 2",
+          "현대자동차 현장 맞춤형 긍정 대체 스크립트 3"
+        ]
+      }
+    ],
+    "practiceScripts": [
+      "연습용 스크립트 1: 상황 및 대사",
+      "연습용 스크립트 2: 상황 및 대사",
+      "연습용 스크립트 3: 상황 및 대사"
+    ],
     "guidelines": [
       "지금 당장 교정해야 할 언어 습관",
       "이 팀원의 특성을 고려한 면담 전략",

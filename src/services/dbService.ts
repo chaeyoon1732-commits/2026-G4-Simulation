@@ -137,9 +137,17 @@ export const dbService = {
 
   async getSimulations(): Promise<SimulationRecord[]> {
     try {
-      const q = query(collection(db, SIMULATIONS_COL), orderBy('timestamp', 'desc'));
+      // Fetch without orderBy first to avoid missing index errors
+      const q = query(collection(db, SIMULATIONS_COL));
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
+      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
+      
+      // Sort manually in JS
+      return records.sort((a, b) => {
+        const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp instanceof Date ? a.timestamp.getTime() : (typeof a.timestamp === 'number' ? a.timestamp : 0));
+        const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp instanceof Date ? b.timestamp.getTime() : (typeof b.timestamp === 'number' ? b.timestamp : 0));
+        return timeB - timeA;
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, SIMULATIONS_COL);
       return [];

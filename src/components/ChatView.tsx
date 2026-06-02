@@ -290,28 +290,38 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
     }
 
     setIsGeneratingReport(true);
-    let evaluationData = undefined;
+    let evaluationData = null;
 
     try {
       // Get AI Analysis for the report
-      const analysisResponse = await fetch('/api/analyze-report', {
+      const analysisResponse = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           persona,
           scenario,
-          history: messages
+          history: messages.map(m => ({ role: m.role, content: m.content })) // Ensure plain roles
         })
       });
 
       if (analysisResponse.ok) {
         evaluationData = await analysisResponse.json();
+      } else {
+        console.warn('AI Analysis failed with status:', analysisResponse.status);
       }
     } catch (err) {
       console.error('Failed to get AI analysis report:', err);
     } finally {
       setIsGeneratingReport(false);
     }
+
+    // Prepare cleaned message history for storage
+    const cleanMessages = messages.map(m => ({
+      role: m.role,
+      content: m.content,
+      emotion: m.emotion || '',
+      timestamp: m.timestamp || Date.now()
+    }));
 
     const simulationData: SimulationRecord = {
       userId: user.uid,
@@ -323,20 +333,21 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       personaName: persona.name,
       scenarioId: scenario.id,
       scenarioTitle: scenario.title,
-      messages,
+      messages: cleanMessages,
       finalEmotion: currentEmotion,
-      metrics,
+      metrics: { ...metrics },
       turnCount,
       isCompleted: turnCount >= 5 || isAuto,
       timestamp: Date.now(),
       evaluation: evaluationData
     };
 
-    if (messages.length > 1) {
+    if (cleanMessages.length > 1) {
       try {
+        console.log('[ChatView] Persisting simulation result to Firestore...');
         await dbService.saveSimulation(simulationData);
       } catch (err) {
-        console.error('Record save error:', err);
+        console.error('Final simulation save failed:', err);
       }
     }
     

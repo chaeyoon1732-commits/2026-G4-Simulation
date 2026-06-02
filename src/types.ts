@@ -34,6 +34,14 @@ export interface SimulationReport {
   improvements: string;
   actionPlan: {
     quote: string;
+    interviewSkill?: string;
+    negativePatterns?: {
+      pattern: string;
+      actualQuote: string;
+      impact: string;
+      replacementScripts: string[];
+    }[];
+    practiceScripts?: string[];
     guidelines: string[];
     risk: string;
   };

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { SimulationRecord } from '../types';
 import { 
@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   FileText,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  ArrowRight
 } from 'lucide-react';
 import { 
   Radar, 
@@ -93,23 +94,31 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
     try {
       setIsDownloading(true);
       const element = reportRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+      
+      // html-to-image handles oklch and modern CSS much better than html2canvas
+      const dataUrl = await toPng(element, {
+        quality: 0.95,
         backgroundColor: '#ffffff',
-        windowWidth: 1200,
+        width: 1200, // Fixed width for consistent PDF layout
+        style: {
+          borderRadius: '0' // Ensure corners are crisp in PDF
+        }
       });
       
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      // Calculate height to maintain aspect ratio
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(resolve => img.onload = resolve);
+      
+      const pdfHeight = (img.height * pdfWidth) / img.width;
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`interview-report-${simulation.userName}-${Date.now()}.pdf`);
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('PDF generation error:', error);
     } finally {
       setIsDownloading(false);
     }
@@ -319,16 +328,113 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
             </div>
           </div>
 
+          {/* Negative Pattern Analysis Section */}
+          {(simulation.evaluation?.actionPlan?.negativePatterns && simulation.evaluation.actionPlan.negativePatterns.length > 0) && (
+            <div className="mb-12">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-200">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl font-black text-[#002C5F]">화법 패턴 심층 분석 (Negative pattern analysis)</h3>
+              </div>
+
+              <div className="space-y-8">
+                {simulation.evaluation.actionPlan.negativePatterns.map((p, idx) => (
+                  <div key={idx} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-8 bg-slate-50/50 border-b border-slate-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-xs font-black border border-red-100">
+                          {p.pattern}
+                        </span>
+                        <div className="text-xs text-slate-400 font-bold uppercase tracking-widest">교정 필요 패턴 #{idx + 1}</div>
+                      </div>
+                      <div className="flex gap-4 items-start">
+                        <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 font-black shrink-0">QUOTE</div>
+                        <p className="text-lg font-bold text-slate-700 italic">"{p.actualQuote}"</p>
+                      </div>
+                    </div>
+
+                    <div className="p-8 grid grid-cols-12 gap-10">
+                      <div className="col-span-4">
+                        <h4 className="text-sm font-black text-slate-400 uppercase mb-4 tracking-tighter">심리적 영향 (IMPACT)</h4>
+                        <p className="text-sm text-slate-600 font-bold leading-relaxed">{p.impact}</p>
+                      </div>
+                      <div className="col-span-8 border-l border-slate-100 pl-10">
+                        <h4 className="text-sm font-black text-blue-600 uppercase mb-6 flex items-center gap-2">
+                          <Zap className="w-4 h-4" /> 현대자동차 현장 맞춤형 대체 스크립트 (REPLACEMENTS)
+                        </h4>
+                        <div className="space-y-4">
+                          {p.replacementScripts.map((script, sIdx) => (
+                            <div key={sIdx} className="group relative">
+                              <div className="flex items-center gap-4 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50 group-hover:bg-blue-50 transition-all">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-blue-600 font-black text-xs border border-blue-100 shadow-sm group-hover:scale-110 transition-transform">
+                                  {sIdx + 1}
+                                </div>
+                                <p className="text-sm font-bold text-[#002C5F] leading-snug">{script}</p>
+                                <ArrowRight className="w-4 h-4 ml-auto text-blue-300 transform group-hover:translate-x-1 transition-transform" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Actionable Insights Footer */}
-          <div className="bg-[#002C5F]/5 p-12 rounded-[2.5rem]">
+              <div className="bg-[#002C5F]/5 p-12 rounded-[2.5rem] mt-12">
             <h3 className="text-2xl font-black text-[#002C5F] mb-10 flex items-center gap-3">
-              <Lightbulb className="w-8 h-8 text-yellow-500" /> 실전 가이드 및 액션 플랜 (Actionable Insights)
+              <Lightbulb className="w-8 h-8 text-yellow-500" /> 맞춤형 솔루션 및 액션 플랜 (Actionable Insights)
             </h3>
             
+            <div className="grid grid-cols-2 gap-10 mb-10">
+              {/* Interview Skill Suggestion */}
+              <div className="col-span-1 bg-white p-8 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                <div className="flex items-center gap-3 mb-6 relative">
+                  <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-lg font-black text-[#002C5F]">권장 면담 스킬</h4>
+                </div>
+                <div className="text-xl font-black text-blue-600 mb-2">
+                  {simulation.evaluation?.actionPlan?.interviewSkill || '개방형 질문 중심의 경청법'}
+                </div>
+                <p className="text-sm text-slate-500 font-bold leading-relaxed">
+                  상대방의 '예/아니오' 답변을 유도하는 폐쇄형 질문보다는, 상대방의 생각을 열어주는 방식의 소통이 필요합니다.
+                </p>
+              </div>
+
+              {/* Practice scripts */}
+              <div className="col-span-1 bg-white p-8 rounded-3xl border border-emerald-100 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-lg">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-lg font-black text-[#002C5F]">추천 스크립트 (Scripts)</h4>
+                </div>
+                <div className="space-y-3">
+                  {(simulation.evaluation?.actionPlan?.practiceScripts || [
+                    "요즘 박 대리님이 가장 몰입하고 있는 업무는 무엇인가요?",
+                    "그 과정에서 제가 지원해줄 수 있는 부분이 있다면 말씀해주세요.",
+                    "솔직하게 말씀해주셔서 감사합니다. 개선을 위해 함께 고민해봅시다."
+                  ]).map((script: string, i: number) => (
+                    <div key={i} className="p-3 bg-emerald-50 rounded-xl border border-emerald-100/50 text-emerald-800 text-[13px] font-bold leading-relaxed flex gap-3">
+                      <span className="text-emerald-400">Q.</span>
+                      {script}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-3 gap-10">
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-slate-800 font-black text-sm uppercase">
-                  <FileText className="w-4 h-4" /> 추천 대화 예시
+                  <FileText className="w-4 h-4" /> 리더의 첫 마디 제언
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 italic text-slate-500 text-sm leading-relaxed shadow-sm quote-card relative font-bold">
                   "{simulation.evaluation?.actionPlan.quote || `${simulation.personaName}씨, 요즘 바쁜 일정 속에서도 묵묵히 제 역할을 해주고 있어 든든해요. 혹시 업무 배분에서 제가 놓치고 있는 부분이 있다면 편하게 말해주세요.`}"
@@ -340,7 +446,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <UserCheck className="w-4 h-4" /> 리더십 행동 가이드
                 </div>
                 <ul className="space-y-3">
-                  {(simulation.evaluation?.actionPlan.guidelines || ['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회']).map((item, i) => (
+                  {(simulation.evaluation?.actionPlan.guidelines || ['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회']).map((item: string, i: number) => (
                     <li key={i} className="flex items-center gap-3 text-slate-600 text-sm font-bold">
                        <span className="w-1.5 h-1.5 bg-[#002C5F] rounded-full"></span>
                        {item}
