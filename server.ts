@@ -26,9 +26,17 @@ const validateApiKey = (req: any, res: any, next: any) => {
 
 // Gemini initialization helper
 const getAiClient = () => {
-  const envKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+  const rawKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+  // Filter out quotes and non-printable characters/whitespace
+  const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
+  
+  if (apiKey !== 'MY_GEMINI_API_KEY' && apiKey !== '') {
+    const masked = `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`;
+    console.log(`[Gemini Init] Key: ${masked} (Len: ${apiKey.length})`);
+  }
+
   return new GoogleGenAI({
-    apiKey: envKey,
+    apiKey: apiKey,
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -110,8 +118,8 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
 
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         if (text) {
           res.write(text);
         }
@@ -124,7 +132,7 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       const message = innerError.message || '';
       
       if (message.includes('API key not valid')) {
-        errorMsg = '유효하지 않은 Gemini API 키가 감지되었습니다. [Settings] -> [Secrets] 메뉴에서 키가 정확한지(복사 시 앞뒤 공백 포함 등) 다시 확인해주세요. 결제가 등록된 유료 계정의 키인지도 확인이 필요합니다.';
+        errorMsg = '유효하지 않은 Gemini API 키가 감지되었습니다. [Settings] -> [Secrets] 메뉴에 등록된 GEMINI_API_KEY 값이 따옴표(")나 공백 없이 정확한지 확인해주세요.';
       } else if (message.includes('overloaded') || innerError.status === 503) {
         errorMsg = '현재 AI 서버에 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
       }
