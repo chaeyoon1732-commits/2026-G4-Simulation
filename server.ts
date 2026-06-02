@@ -27,9 +27,10 @@ const validateApiKey = (req: any, res: any, next: any) => {
 
 // Gemini initialization helper
 const getAiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+  const apiKey = envKey.trim();
   return new GoogleGenAI({
-    apiKey: apiKey || '',
+    apiKey: apiKey,
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -101,14 +102,14 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 
     try {
       const ai = getAiClient();
-      console.log('Generating content with model: gemini-3.5-flash (Low Thinking Level for high availability)');
+      console.log('Generating content with model: gemini-1.5-flash');
       
       // Fundamental solution: Calibrated to stay within overall timeout (~25s total)
       const generateWithRetry = async (retries = 3, initialDelay = 1000) => {
         for (let i = 0; i < retries; i++) {
           try {
             return await ai.models.generateContent({
-              model: 'gemini-3.5-flash',
+              model: 'gemini-1.5-flash',
               contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
             });
           } catch (err: any) {
@@ -180,13 +181,13 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         errorMessage = 'AI 서비스의 할당량을 초과했습니다. 잠시 후 다시 시도해주세요. (429 Rate Limit)';
         status = 429;
       } else if (isServiceUnavailable) {
-        errorMessage = '현재 구글 AI 서버에 일시적으로 많은 요청이 몰리고 있습니다. (503 Overloaded) 유료 계정 결제 여부와 상관없이 해당 모델 리전에서 발생하는 현상입니다. 수 초 후 다시 시도해 주세요.';
+        errorMessage = '현재 구글 AI 서버에 일시적으로 많은 요청이 몰리고 있습니다. (503 Overloaded) 수 초 후 다시 시도해 주세요.';
         status = 503;
-      } else if (isUnauthenticated) {
-        errorMessage = 'API 인증 오류가 발생했습니다. Settings -> Secrets에서 유료 계정의 API 키가 올바르게 입력되었는지 확인해주세요.';
+      } else if (isUnauthenticated || (innerError.message && innerError.message.includes('API key not valid'))) {
+        errorMessage = 'API 인증 오류가 발생했습니다. AI Studio 우측 상단 [Settings] -> [Secrets] 메뉴에 등록한 GEMINI_API_KEY가 올바른지 다시 한번 확인해주세요. 복사 과정에서 앞뒤에 공백이나 줄바꿈 문자가 포함되지 않았는지 확인하는 것이 좋습니다.';
         status = 401;
       } else if (isModelNotFound) {
-        errorMessage = '선택한 AI 모델을 사용할 수 없습니다. (Model: gemini-3.5-flash)';
+        errorMessage = '선택한 AI 모델을 사용할 수 없습니다. (Model: gemini-1.5-flash)';
         status = 404;
       }
       
@@ -247,7 +248,7 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
 
     const ai = getAiClient();
     const result = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       config: {
         responseMimeType: 'application/json'
