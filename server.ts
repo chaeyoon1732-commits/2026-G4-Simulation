@@ -12,14 +12,13 @@ app.use(express.json());
 
 // API Key Validation Middleware for Chat
 const validateApiKey = (req: any, res: any, next: any) => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  console.log('API Key Validation - GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY, 'GOOGLE_API_KEY exists:', !!process.env.GOOGLE_API_KEY);
+  const rawKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  console.log('API Key Validation - Key found:', !!rawKey);
 
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.trim() === '') {
-    return res.status(500).json({ 
+  if (!rawKey || typeof rawKey !== 'string' || rawKey.trim() === '' || rawKey === 'MY_GEMINI_API_KEY') {
+    return res.status(401).json({ 
       error: 'API 키가 설정되지 않았습니다.',
-      details: 'AI Studio 설정(Settings -> Secrets) 또는 Vercel 환경 변수에 GEMINI_API_KEY 또는 GOOGLE_API_KEY를 등록해주세요. ' + 
-               '키를 등록한 후에는 반드시 서버를 재시작하거나 다시 배포해야 적용됩니다.'
+      details: 'AI Studio 우측 상단 [Settings] -> [Secrets] 메뉴에 "GEMINI_API_KEY"를 등록해주세요.'
     });
   }
   next();
@@ -27,10 +26,9 @@ const validateApiKey = (req: any, res: any, next: any) => {
 
 // Gemini initialization helper
 const getAiClient = () => {
-  const envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-  const apiKey = envKey.trim();
+  const envKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   return new GoogleGenAI({
-    apiKey: apiKey,
+    apiKey: envKey,
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -101,14 +99,14 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 `;
 
     const ai = getAiClient();
-    console.log('Generating streaming content with model: gemini-1.5-flash');
+    console.log('Generating streaming content with model: gemini-3.5-flash');
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
 
     try {
       const result = await ai.models.generateContentStream({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3.5-flash',
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
 
@@ -121,11 +119,20 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
       res.end();
     } catch (innerError: any) {
       console.error('Streaming error:', innerError);
-      // If headers already sent, we can't send a proper JSON error response
+      
+      let errorMsg = 'AI 응답 생성 중 오류가 발생했습니다.';
+      const message = innerError.message || '';
+      
+      if (message.includes('API key not valid')) {
+        errorMsg = '유효하지 않은 Gemini API 키가 감지되었습니다. [Settings] -> [Secrets] 메뉴에서 키가 정확한지(복사 시 앞뒤 공백 포함 등) 다시 확인해주세요. 결제가 등록된 유료 계정의 키인지도 확인이 필요합니다.';
+      } else if (message.includes('overloaded') || innerError.status === 503) {
+        errorMsg = '현재 AI 서버에 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+      }
+      
       if (!res.headersSent) {
-        res.status(500).json({ error: 'AI 응답 생성 중 오류가 발생했습니다.', details: innerError.message });
+        res.status(500).json({ error: errorMsg, details: innerError.message });
       } else {
-        res.write(`\n[ERROR: ${innerError.message}]`);
+        res.write(`\n\n[오류: ${errorMsg}]`);
         res.end();
       }
     }
@@ -181,7 +188,7 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
 
     const ai = getAiClient();
     const result = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       config: {
         responseMimeType: 'application/json'
