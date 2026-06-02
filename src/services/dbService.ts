@@ -119,12 +119,19 @@ export const dbService = {
   // Simulations
   async saveSimulation(record: Omit<SimulationRecord, 'timestamp'>) {
     try {
-      await addDoc(collection(db, SIMULATIONS_COL), {
-        ...record,
+      console.log('[dbService] Saving simulation record for:', record.userEmail);
+      // Remove any pre-existing timestamp to avoid conflicts with serverTimestamp
+      const { timestamp: _, ...cleanRecord } = record as any;
+      const docRef = await addDoc(collection(db, SIMULATIONS_COL), {
+        ...cleanRecord,
         timestamp: serverTimestamp()
       });
+      console.log('[dbService] Record saved successfully with ID:', docRef.id);
+      return docRef.id;
     } catch (error) {
+      console.error('[dbService] Save simulation error:', error);
       handleFirestoreError(error, OperationType.CREATE, SIMULATIONS_COL);
+      throw error;
     }
   },
 

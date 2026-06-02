@@ -69,15 +69,28 @@ export default function AdminView() {
   };
 
   const handleExportExcel = () => {
-    const data = simulations.map(s => ({
-      날짜: new Date(s.timestamp?.toDate()).toLocaleString(),
-      사용자: s.userName,
-      이메일: s.userEmail,
-      대상: s.personaName,
-      상황: s.scenarioTitle,
-      마지막감정: s.finalEmotion,
-      메시지수: s.messages.length
-    }));
+    const data = simulations.map(s => {
+      let dateStr = 'Unknown';
+      try {
+        if (s.timestamp?.toDate) {
+          dateStr = new Date(s.timestamp.toDate()).toLocaleString();
+        } else if (s.timestamp) {
+          dateStr = new Date(s.timestamp as any).toLocaleString();
+        }
+      } catch (e) {
+        console.warn('Date convert error', e);
+      }
+      
+      return {
+        날짜: dateStr,
+        사용자: s.userName,
+        이메일: s.userEmail,
+        대상: s.personaName,
+        상황: s.scenarioTitle,
+        마지막감정: s.finalEmotion,
+        메시지수: s.messages?.length || 0
+      };
+    });
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Simulation_History");
@@ -310,10 +323,21 @@ export default function AdminView() {
                   <tbody className="divide-y">
                     {simulations.slice(0, 20).map((sim) => {
                       const avgScore = sim.metrics ? Math.round((sim.metrics.rapport + sim.metrics.analysis + sim.metrics.solution + sim.metrics.engagement) / 4) : 0;
+                      let dateStr = 'Just now';
+                      try {
+                        if (sim.timestamp?.toDate) {
+                          dateStr = new Date(sim.timestamp.toDate()).toLocaleString();
+                        } else if (sim.timestamp) {
+                          dateStr = new Date(sim.timestamp as any).toLocaleString();
+                        }
+                      } catch (e) {
+                        console.warn('Timestamp render error', e);
+                      }
+
                       return (
                         <tr key={sim.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-4 font-medium text-slate-400">
-                            {sim.timestamp?.toDate ? new Date(sim.timestamp.toDate()).toLocaleString() : 'Just now'}
+                            {dateStr}
                           </td>
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-800">{sim.userName}</div>

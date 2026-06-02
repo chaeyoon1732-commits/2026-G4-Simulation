@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -27,7 +27,6 @@ const validateApiKey = (req: any, res: any, next: any) => {
 // Gemini initialization helper
 const getAiClient = () => {
   const rawKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
-  // Filter out quotes and non-printable characters/whitespace
   const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
   
   if (apiKey !== 'MY_GEMINI_API_KEY' && apiKey !== '') {
@@ -47,25 +46,18 @@ const getAiClient = () => {
 
 // API routes go here FIRST
 app.get('/api/health', (req, res) => {
-  const availableKeys = Object.keys(process.env).map(key => {
-    const isSet = !!process.env[key] && process.env[key] !== 'MY_GEMINI_API_KEY' && process.env[key] !== '';
-    return { key, isSet };
-  });
-  
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     apiKeySet: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
-    nodeEnv: process.env.NODE_ENV,
-    secrets: availableKeys.filter(k => k.key.includes('API') || k.key.includes('KEY') || k.key.includes('GEMINI'))
+    nodeEnv: process.env.NODE_ENV
   });
 });
 
 app.post('/api/chat', validateApiKey, async (req, res) => {
-  console.log('[API Chat] Incoming request from User-Agent:', req.headers['user-agent']);
+  console.log('[API Chat] Incoming request');
   try {
     const { persona, scenario, history } = req.body;
-
     if (!persona || !scenario || !history) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
@@ -107,148 +99,140 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
 `;
 
     const ai = getAiClient();
-    console.log('Generating streaming content with model: gemini-3.5-flash');
-
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    try {
-      const result = await ai.models.generateContentStream({
-        model: 'gemini-3.5-flash',
-        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-      });
+    let attempts = 0;
+    while (attempts < 5) {
+      try {
+        const result = await ai.models.generateContentStream({
+          model: 'gemini-3.5-flash',
+          contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+        });
 
-      for await (const chunk of result) {
-        const text = chunk.text;
-        if (text) {
-          res.write(text);
+        for await (const chunk of result) {
+          const text = chunk.text;
+          if (text) res.write(text);
         }
-      }
-      res.end();
-    } catch (innerError: any) {
-      console.error('Streaming error:', innerError);
-      
-      let errorMsg = 'AI 응답 생성 중 오류가 발생했습니다.';
-      const message = innerError.message || '';
-      
-      if (message.includes('API key not valid')) {
-        errorMsg = '유효하지 않은 Gemini API 키가 감지되었습니다. [Settings] -> [Secrets] 메뉴에 등록된 GEMINI_API_KEY 값이 따옴표(")나 공백 없이 정확한지 확인해주세요.';
-      } else if (message.includes('overloaded') || innerError.status === 503) {
-        errorMsg = '현재 AI 서버에 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
-      }
-      
-      if (!res.headersSent) {
-        res.status(500).json({ error: errorMsg, details: innerError.message });
-      } else {
-        res.write(`\n\n[오류: ${errorMsg}]`);
         res.end();
+        return;
+      } catch (innerError: any) {
+        attempts++;
+        const message = String(innerError.message || '').toLowerCase();
+        const code = innerError.status || innerError.code || 0;
+        const isRetryable = message.includes('overloaded') || message.includes('high demand') || message.includes('unavailable') || code === 503 || code === 429;
+        
+        if (isRetryable && attempts < 5) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
+          continue;
+        }
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'AI Error', details: message });
+        } else {
+          res.write(`\n\n[오류: AI 서비스 일시 지연]`);
+          res.end();
+        }
+        return;
       }
     }
-  } catch (outerError: any) {
-    console.error('Outer handler error:', outerError);
-    if (!res.headersSent) {
-      res.status(500).json({ error: '서버 내부 오류가 발생했습니다.' });
-    }
+  } catch (error) {
+    console.error('Chat error:', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Server Error' });
   }
 });
 
-app.post('/api/analyze-report', validateApiKey, async (req, res) => {
+app.post('/api/report', validateApiKey, async (req, res) => {
   try {
     const { persona, scenario, history } = req.body;
-
-    if (!persona || !scenario || !history) {
-      return res.status(400).json({ error: 'Missing required parameters' });
-    }
-
     const systemPrompt = `
-귀하는 현대자동차 리더십 코칭 전문가입니다. 
-다음은 리더(사용자)와 팀원(${persona.name}, ${persona.role}, ${persona.division}) 간의 시뮬레이션 면담 기록입니다.
-이 대화 내용을 분석하여 리더에게 제공할 상세 결과 리포트를 작성하세요.
+귀하는 현대자동차 리서치/코칭 분야의 '마스터 등급' AI 리더십 분석 전문가입니다. 
+단순 대화 요약이 아닌, 사용자의 '무의식적인 말투', '단어 선택의 패턴', '공감의 깊이'를 데이터 기반으로 해부하여 리포트를 작성하세요.
 
-[시나리오 내용]
-제목: ${scenario.title}
-내용: ${scenario.description}
+[시나리오 context]
+- 제목: ${scenario.title}
+- 내용: ${scenario.description}
+- 팀원 정보: ${persona.name}(${persona.role}, ${persona.mbti} - ${persona.style})
 
-[대화 기록]
+[대화 로그 데이터]
 ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.content}`).join('\n')}
 
-[요구사항]
-1. 모든 항목은 실제 대화 내용에서 나타난 리더의 발언과 팀원의 반응을 근거로 구체적으로 작성해야 합니다.
-2. 직무의 특성을 반영하세요:
-   - 카마스터(영업)의 경우: 지점 당직, 고객 DB 관리, 출고 지연 대응, CS 관리 등 영업 현장의 고충과 전문성을 고려하세요.
-   - 서비스엔지니어(정비)의 경우: 정비 리드타임(L/T), 부품 수급 애로, 보증 수리 이슈, 작업 숙련도 등 서비스 현장의 현실을 반영하세요.
-3. 반드시 다음 JSON 형식을 엄격히 지켜 답변하세요. (JSON 외의 텍스트는 포함하지 마세요)
+[리포트 작성 엄격 규칙]
+1. 인용문 중심 분석: 모든 '강점'과 '개선점'에는 대화 로그에서 사용자가 실제로 한 말(따옴표 "")을 반드시 포함하고, 그 말이 상대방에게 준 심리적 타격을 분석하세요.
+2. 립서비스 금지: "잘했습니다" 같은 모호한 칭찬은 배제합니다. "리더가 ~라고 질문한 것은 개방형 질문으로서 상대방의 본심을 끌어내는 데 기여했습니다"와 같이 분석하세요.
+3. 실전 스크립트 제공: 액션 플랜에는 구체적인 대사(Script)를 상황별로 제공하세요.
+4. 직무 밀착 솔루션: ${persona.division} 부문의 실제 현장 고충(영업 실적, CS 만족도, 정비 공임 등)과 연결된 리더십 비전을 제시하세요.
+
+반드시 다음 JSON 형식을 100% 준수하여 답변하세요. (JSON 외 텍스트 포함 시 시스템 오류 발생)
 
 {
-  "overall": "대화 전체에 대한 2~3문장의 종합 총평",
-  "psychology": "대화 중 나타난 팀원의 구체적인 심리 변화 및 반응 분석",
-  "leadership": "리더의 대화 스타일이 팀원에게 미친 영향 및 스타일 진단",
-  "needs": "팀원이 대화 속에서 은연중에 드러낸 핵심 요구사항이나 불안 요소",
-  "strengths": "대화 중 리더가 보여준 가장 긍정적이었던 순간이나 발언 (근거 포함)",
-  "improvements": "가장 아쉬웠던 순간이나 대화의 흐름을 개선하기 위한 포인트",
+  "overall": "리더의 고유한 소통 스타일을 정의하고, 전체적인 소통 유효성을 전문적으로 총평 (최소 5문장)",
+  "psychology": "사용자의 특정 발언 이후 팀원의 심리 변화(경계심 고조, 신뢰 형성 등)를 정밀 분석",
+  "leadership": "리더의 화법 원형 진단 및 대화 패턴에 숨겨진 리더십 자아 분석",
+  "needs": "팀원이 직접 말하지 않았으나 대화 속에 간절히 원했던 '정서적 결핍' 또는 '실질적 지원' 포인트",
+  "strengths": "가장 효과적이었던 순간의 발언 인용 및 해당 발언의 성과 분석",
+  "improvements": "가장 아쉬웠던 발언 인용 및 그 발언을 들었을 때 팀원이 느꼈을 감정의 원인 분석",
   "actionPlan": {
-    "quote": "리더에게 추천하는 이 팀원 맞춤형 대화 예시 (1문장)",
-    "guidelines": ["리더를 위한 구체적인 행동 가이드 3가지"],
-    "risk": "현재의 리더십 스타일을 유지할 경우 발생할 수 있는 잠정적 리스크"
+    "quote": "다음 대화 재개 시 상대방의 마음을 열 수 있는 추천 스크립트",
+    "guidelines": [
+      "지금 당장 교정해야 할 언어 습관",
+      "이 팀원의 특성을 고려한 면담 전략",
+      "갈등 재발 시 실질적 행동 규칙"
+    ],
+    "risk": "현재의 소통 스타일이 고착화될 경우 발생할 조직 관리 리스크"
   }
 }
 `;
 
     const ai = getAiClient();
-    const result = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-      config: {
-        responseMimeType: 'application/json'
+    let attempts = 0;
+    while (attempts < 5) {
+      try {
+        const result = await ai.models.generateContent({
+          model: 'gemini-3.5-flash',
+          contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+          config: { responseMimeType: 'application/json', temperature: 0.2 } as any
+        });
+        const resObj = (result as any);
+        const responseText = resObj.text || (typeof resObj.text === 'function' ? resObj.text() : '') || resObj.response?.text() || '';
+        const cleanedJson = responseText.replace(/```json|```/g, '').trim();
+        return res.json(JSON.parse(cleanedJson));
+      } catch (innerError: any) {
+        attempts++;
+        const message = String(innerError.message || '').toLowerCase();
+        const code = innerError.status || innerError.code || 0;
+        const isRetryable = message.includes('overloaded') || message.includes('high demand') || message.includes('unavailable') || code === 503 || code === 429;
+        if (isRetryable && attempts < 5) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1500));
+          continue;
+        }
+        throw innerError;
       }
-    });
-
-    const responseText = result.text || '';
-    res.json(JSON.parse(responseText));
+    }
   } catch (error: any) {
-    console.error('Report analysis error:', error);
-    res.status(500).json({ 
-      error: '리포트 분석 중 오류가 발생했습니다.', 
-      details: error.message,
-      code: error.status || error.code 
-    });
+    console.error('Report error:', error);
+    res.status(500).json({ error: 'Report generation failed', details: error.message });
   }
 });
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
-    // Dynamic import to avoid including vite in production bundles
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    
-    // Note: This catch-all should be LAST
     app.get('*', (req, res, next) => {
-      // Skip if the request is for an API route that might have missed or 404ed
-      if (req.path.startsWith('/api/')) {
-        return next();
-      }
+      if (req.path.startsWith('/api/')) return next();
       res.sendFile(path.join(distPath, 'index.html'));
     });
-
-    if (!process.env.VERCEL) {
-      app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server running on port ${PORT}`);
-      });
-    }
+    app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
   }
 }
 
 startServer();
-
 export default app;
