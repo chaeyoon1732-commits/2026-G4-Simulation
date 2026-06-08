@@ -6,10 +6,14 @@ import { signInWithPopup, signOut } from 'firebase/auth';
 
 interface LoginViewProps {
   onLogin: (userData: UserProfile) => void;
+  onCodeLogin: (code: string) => boolean;
+  publicAccess?: boolean;
 }
 
-export default function LoginView({ onLogin }: LoginViewProps) {
+export default function LoginView({ onLogin, onCodeLogin, publicAccess }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [showCodeInput, setShowCodeInput] = useState(publicAccess || false);
 
   const handleResetSession = async () => {
     try {
@@ -128,7 +132,7 @@ ${debugInfo}
           <button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center gap-4 bg-white text-[#002C5F] px-8 py-6 rounded-2xl font-bold hover:bg-blue-50 transition-all shadow-xl active:scale-95 justify-center group disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full flex items-center gap-4 bg-white text-[#002C5F] px-8 py-6 rounded-2xl font-bold hover:bg-blue-50 transition-all shadow-xl active:scale-95 justify-center group disabled:opacity-70 disabled:cursor-not-allowed mb-4"
           >
             {isLoading ? (
               <div className="w-6 h-6 border-3 border-[#002C5F]/30 border-t-[#002C5F] rounded-full animate-spin"></div>
@@ -144,6 +148,47 @@ ${debugInfo}
               </>
             )}
           </button>
+
+          {!showCodeInput ? (
+            <button 
+              onClick={() => setShowCodeInput(true)}
+              className="text-white/40 hover:text-white/80 text-xs font-bold transition-all"
+            >
+              액세스 코드로 로그인하기
+            </button>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full flex gap-2"
+            >
+              <input 
+                type="password"
+                placeholder="Access Code"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-white/40 text-sm"
+              />
+              <button 
+                onClick={() => {
+                  if (onCodeLogin(accessCode)) {
+                    // Success handled in App.tsx
+                  } else {
+                    alert('올바르지 않은 액세스 코드입니다.');
+                  }
+                }}
+                className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all"
+              >
+                확인
+              </button>
+              <button 
+                onClick={() => setShowCodeInput(false)}
+                className="bg-transparent text-white/40 px-2 py-3 text-xs"
+              >
+                취소
+              </button>
+            </motion.div>
+          )}
           
           <div className="mt-8 flex flex-col items-center gap-4">
             <button 

@@ -15,7 +15,10 @@ import {
   MessageSquare,
   ChevronRight,
   Loader2,
-  Maximize2
+  Maximize2,
+  Settings,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -34,7 +37,7 @@ import { saveAs } from 'file-saver';
 import ReportView from './ReportView';
 
 export default function AdminView() {
-  const [tab, setTab] = useState<'dashboard' | 'personas' | 'scenarios'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'personas' | 'scenarios' | 'settings'>('dashboard');
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [simulations, setSimulations] = useState<SimulationRecord[]>([]);
@@ -43,6 +46,7 @@ export default function AdminView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationRecord | null>(null);
   const [editData, setEditData] = useState<any>({});
+  const [settings, setSettings] = useState<any>({ publicAccess: false });
 
   useEffect(() => {
     fetchData();
@@ -52,14 +56,16 @@ export default function AdminView() {
     try {
       setLoading(true);
       setError(null);
-      const [p, s, sim] = await Promise.all([
+      const [p, s, sim, sett] = await Promise.all([
         dbService.getPersonas(),
         dbService.getScenarios(),
-        dbService.getSimulations()
+        dbService.getSimulations(),
+        dbService.getSettings()
       ]);
       setPersonas(p);
       setScenarios(s);
       setSimulations(sim);
+      setSettings(sett);
     } catch (err: any) {
       console.error('Admin fetch error:', err);
       setError(err.message || '데이터를 불러오는 중 오류가 발생했습니다.');
@@ -143,6 +149,7 @@ export default function AdminView() {
               { id: 'dashboard', label: '대시보드', icon: BarChart3 },
               { id: 'personas', label: '페르소나 관리', icon: Users },
               { id: 'scenarios', label: '시나리오 관리', icon: Briefcase },
+              { id: 'settings', label: '시스템 설정', icon: Settings },
             ].map(t => (
               <button
                 key={t.id}
@@ -420,6 +427,62 @@ export default function AdminView() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        ) : tab === 'settings' ? (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-h-blue">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">접속 및 시스템 설정</h3>
+                  <p className="text-sm text-slate-500">모든 사용자에 대한 접속 권한 및 마스터 설정을 관리합니다.</p>
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-slate-800">퍼블릭 액세스 (Public Access)</h4>
+                    <p className="text-xs text-slate-500">활성화 시 모든 사용자가 액세스 코드를 통해 접속할 수 있습니다.</p>
+                    <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase">
+                      Passcode: 6927376
+                    </div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      const newStatus = !settings.publicAccess;
+                      try {
+                        setLoading(true);
+                        await dbService.updateSettings({ publicAccess: newStatus });
+                        setSettings({ ...settings, publicAccess: newStatus });
+                      } catch (e) {
+                        alert('설정 업데이트에 실패했습니다.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none ${settings.publicAccess ? 'bg-[#002C5F]' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.publicAccess ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100">
+                   <div className="flex gap-4">
+                     <AlertCircle className="w-6 h-6 text-[#002C5F] shrink-0" />
+                     <div className="space-y-2">
+                       <h4 className="font-bold text-[#002C5F] text-sm italic">마스터 액세스 알림</h4>
+                       <p className="text-xs text-slate-600 leading-relaxed">
+                         "관리자모드 '6927376' 입력하면 모든 사용자가 접속할 수 있게 해줘." 요청에 따라 구현되었습니다.<br/>
+                         시스템 보안을 위해 공유가 완료된 후에는 퍼블릭 액세스를 비활성화하는 것을 권장합니다.
+                       </p>
+                     </div>
+                   </div>
+                </div>
               </div>
             </div>
           </div>

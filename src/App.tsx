@@ -17,6 +17,7 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [dbConnected, setDbConnected] = useState(false);
+  const [publicAccess, setPublicAccess] = useState(false);
   const [step, setStep] = useState<'setup' | 'chat' | 'admin' | 'report' | 'admin-login'>('setup');
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -93,6 +94,23 @@ export default function App() {
     localStorage.setItem('simulation_user', JSON.stringify(newUser));
   };
 
+  const handleCodeLogin = (code: string) => {
+    if (code === ADMIN_PASSWORD) {
+      const guestUser: UserProfile = {
+        uid: 'guest-' + Date.now(),
+        displayName: 'Guest Leader',
+        email: 'guest@simulation.local',
+        affiliation: '현대자동차',
+        group: 'Guest',
+        isAdmin: true,
+        photoURL: null,
+      };
+      handleLogin(guestUser);
+      return true;
+    }
+    return false;
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.removeItem('simulation_user');
@@ -121,13 +139,30 @@ export default function App() {
     setStep('admin-login');
   };
 
-  const handleAdminAuth = (password: string) => {
+  const handleAdminAuth = async (password: string) => {
     if (password === ADMIN_PASSWORD) {
       setStep('admin');
+      // Update public access setting in DB when admin logs in
+      try {
+        await dbService.updateSettings({ publicAccess: true });
+        setPublicAccess(true);
+      } catch (err) {
+        console.error('Failed to update public access setting:', err);
+      }
       return true;
     }
     return false;
   };
+
+  useEffect(() => {
+    const checkSettings = async () => {
+      const settings = await dbService.getSettings();
+      setPublicAccess(settings.publicAccess);
+    };
+    if (dbConnected) {
+      checkSettings();
+    }
+  }, [dbConnected]);
 
   if (loading) {
     return (
@@ -138,7 +173,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginView onLogin={handleLogin} />;
+    return <LoginView onLogin={handleLogin} onCodeLogin={handleCodeLogin} publicAccess={publicAccess} />;
   }
 
   return (
@@ -234,11 +269,14 @@ export default function App() {
                 <p className="text-slate-500 text-sm mb-8 font-medium">관리자 전용 대시보드 접근을 위해<br/>비밀번호를 입력해주세요.</p>
                 
                 <form 
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    const pwd = (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
-                    if (handleAdminAuth(pwd)) {
-                      e.currentTarget.reset();
+                    const form = e.currentTarget;
+                    const pwd = (form.elements.namedItem('password') as HTMLInputElement).value;
+                    const success = await handleAdminAuth(pwd);
+                    if (success) {
+                      // No need to reset if we are switching views, but good practice if kept
+                      form.reset();
                     } else {
                       alert('비밀번호가 올바르지 않습니다.');
                     }

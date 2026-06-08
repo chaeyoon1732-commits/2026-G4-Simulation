@@ -225,7 +225,17 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
           throw new Error('AI returned an empty response');
         }
 
-        const cleanedJson = responseText.replace(/```json|```/g, '').trim();
+        // Robust JSON extraction
+        let cleanedJson = responseText;
+        const firstBrace = responseText.indexOf('{');
+        const lastBrace = responseText.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleanedJson = responseText.substring(firstBrace, lastBrace + 1);
+        } else {
+          cleanedJson = responseText.replace(/```json|```/g, '').trim();
+        }
+
         try {
           return res.json(JSON.parse(cleanedJson));
         } catch (parseError) {

@@ -352,11 +352,6 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
     }
     
     if (turnCount >= 5) {
-      if (isAuto) {
-        alert('면담이 종료되었습니다. 작성된 리포트를 확인합니다.');
-      } else {
-        alert('시뮬레이션이 종료되었습니다. 면담 리포트를 확인하실 수 있습니다.');
-      }
       onShowReport(simulationData);
     } else {
       if (isAuto) {
@@ -547,12 +542,12 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="리더로서 신중하게 답변을 입력하세요..."
-              disabled={isLoading}
+              disabled={isLoading || isGeneratingReport}
               className="w-full border-2 border-slate-100 rounded-3xl py-5 px-8 pr-32 text-base focus:outline-none focus:border-blue-500 focus:bg-white bg-slate-50/80 transition-all font-bold placeholder:text-slate-300 shadow-inner"
             />
             <button
               type="submit"
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || isGeneratingReport}
               className="absolute right-4 bg-[#002C5F] text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-lg hover:shadow-xl hover:bg-black transition-all disabled:opacity-50 disabled:translate-y-0"
             >
               전송하기
@@ -561,7 +556,8 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
           <div className="flex flex-col gap-4 items-center max-w-5xl mx-auto">
             <button 
               onClick={() => handleFinish()}
-              className="w-full max-w-md bg-[#002C5F] text-white py-4 rounded-3xl text-sm font-black hover:shadow-2xl hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 group"
+              disabled={isLoading || isGeneratingReport}
+              className="w-full max-w-md bg-[#002C5F] text-white py-4 rounded-3xl text-sm font-black hover:shadow-2xl hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2 group disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
               면담 시뮬레이션 종료 및 리포트 확인

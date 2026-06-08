@@ -19,8 +19,32 @@ import { handleFirestoreError, OperationType } from '../lib/firebaseUtils';
 const PERSONAS_COL = 'personas';
 const SCENARIOS_COL = 'scenarios';
 const SIMULATIONS_COL = 'simulations';
+const SETTINGS_COL = 'settings';
 
 export const dbService = {
+  // Settings
+  async getSettings() {
+    try {
+      const docRef = doc(db, SETTINGS_COL, 'global');
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return snapshot.data();
+      }
+      return { publicAccess: false };
+    } catch (e) {
+      return { publicAccess: false };
+    }
+  },
+
+  async updateSettings(settings: any) {
+    try {
+      const docRef = doc(db, SETTINGS_COL, 'global');
+      await setDoc(docRef, settings, { merge: true });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.SAVE, SETTINGS_COL);
+    }
+  },
+
   // Validate Connection
   async testConnection() {
     try {

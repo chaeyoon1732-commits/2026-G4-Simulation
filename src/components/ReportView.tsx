@@ -329,7 +329,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
           </div>
 
           {/* Negative Pattern Analysis Section */}
-          {(simulation.evaluation?.actionPlan?.negativePatterns && simulation.evaluation.actionPlan.negativePatterns.length > 0) && (
+          {(simulation.evaluation?.actionPlan?.negativePatterns && simulation.evaluation.actionPlan.negativePatterns?.length > 0) && (
             <div className="mb-12">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-200">
@@ -339,7 +339,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
               </div>
 
               <div className="space-y-8">
-                {simulation.evaluation.actionPlan.negativePatterns.map((p, idx) => (
+                {simulation.evaluation?.actionPlan?.negativePatterns?.map((p, idx) => (
                   <div key={idx} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
                     <div className="p-8 bg-slate-50/50 border-b border-slate-100">
                       <div className="flex items-center justify-between mb-4">
@@ -437,7 +437,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <FileText className="w-4 h-4" /> 리더의 첫 마디 제언
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 italic text-slate-500 text-sm leading-relaxed shadow-sm quote-card relative font-bold">
-                  "{simulation.evaluation?.actionPlan.quote || `${simulation.personaName}씨, 요즘 바쁜 일정 속에서도 묵묵히 제 역할을 해주고 있어 든든해요. 혹시 업무 배분에서 제가 놓치고 있는 부분이 있다면 편하게 말해주세요.`}"
+                  "{simulation.evaluation?.actionPlan?.quote || `${simulation.personaName}씨, 요즘 바쁜 일정 속에서도 묵묵히 제 역할을 해주고 있어 든든해요. 혹시 업무 배분에서 제가 놓치고 있는 부분이 있다면 편하게 말해주세요.`}"
                 </div>
               </div>
 
@@ -446,7 +446,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <UserCheck className="w-4 h-4" /> 리더십 행동 가이드
                 </div>
                 <ul className="space-y-3">
-                  {(simulation.evaluation?.actionPlan.guidelines || ['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회']).map((item: string, i: number) => (
+                  {(simulation.evaluation?.actionPlan?.guidelines || ['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회']).map((item: string, i: number) => (
                     <li key={i} className="flex items-center gap-3 text-slate-600 text-sm font-bold">
                        <span className="w-1.5 h-1.5 bg-[#002C5F] rounded-full"></span>
                        {item}
@@ -460,7 +460,7 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <AlertTriangle className="w-4 h-4" /> 리스크 관리 방안
                 </div>
                 <p className="text-slate-500 text-sm leading-relaxed font-bold">
-                  {simulation.evaluation?.actionPlan.risk || `팀원의 무미건조한 반응이 3회 이상 지속될 경우, 팀원은 리더가 자신에게 관심이 없거나 포기했다고 판단하여 이탈 의사가 생길 수 있습니다. 적극적인 비언어적 표현(고개 끄덕임, 눈맞춤)과 언어적 피드백으로 신뢰를 회복해야 합니다.`}
+                  {simulation.evaluation?.actionPlan?.risk || `팀원의 무미건조한 반응이 3회 이상 지속될 경우, 팀원은 리더가 자신에게 관심이 없거나 포기했다고 판단하여 이탈 의사가 생길 수 있습니다. 적극적인 비언어적 표현(고개 끄덕임, 눈맞춤)과 언어적 피드백으로 신뢰를 회복해야 합니다.`}
                 </p>
               </div>
             </div>
