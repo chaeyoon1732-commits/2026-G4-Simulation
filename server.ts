@@ -217,10 +217,21 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: { responseMimeType: 'application/json', temperature: 0.2 } as any
         });
-        const resObj = (result as any);
-        const responseText = resObj.text || (typeof resObj.text === 'function' ? resObj.text() : '') || resObj.response?.text() || '';
+        
+        // Correct text extraction according to @google/genai SDK
+        const responseText = result.text || '';
+        
+        if (!responseText) {
+          throw new Error('AI returned an empty response');
+        }
+
         const cleanedJson = responseText.replace(/```json|```/g, '').trim();
-        return res.json(JSON.parse(cleanedJson));
+        try {
+          return res.json(JSON.parse(cleanedJson));
+        } catch (parseError) {
+          console.error('JSON Parse Error. Raw text:', responseText);
+          throw new Error('AI returned invalid JSON format');
+        }
       } catch (innerError: any) {
         attempts++;
         const message = String(innerError.message || '').toLowerCase();
