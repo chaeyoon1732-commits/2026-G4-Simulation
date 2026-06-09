@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -102,14 +102,13 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
     res.setHeader('Transfer-Encoding', 'chunked');
 
     let attempts = 0;
-    while (attempts < 10) {
+    while (attempts < 5) {
       try {
         const result = await ai.models.generateContentStream({
           model: 'gemini-3.1-flash-lite',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: {
-            temperature: 0.7,
-            thinkingConfig: { thinkingLevel: 'MINIMAL' } as any
+            temperature: 0.7
           }
         });
 
@@ -123,32 +122,15 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         attempts++;
         const message = String(innerError.message || '').toLowerCase();
         const code = innerError.status || innerError.code || 0;
-        const isRetryable = message.includes('overloaded') || 
-                           message.includes('high demand') || 
-                           message.includes('unavailable') || 
-                           message.includes('quota') ||
-                           message.includes('limit') ||
-                           code === 503 || code === 429;
         
-        if (isRetryable && attempts < 10) {
-          const baseDelay = Math.pow(1.5, attempts) * 1000;
-          const jitter = Math.random() * 800; // Add jitter to prevent thundering herd
-          const delay = baseDelay + jitter;
-          console.log(`[AI Retry] Attempt ${attempts}/10, Waiting ${Math.round(delay)}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+        if (attempts < 5 && (message.includes('overloaded') || code === 503 || code === 429)) {
+          console.log(`[AI Retry] Attempt ${attempts}/5...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
           continue;
         }
+        
         if (!res.headersSent) {
-          let errorMsg = 'AI Error';
-          console.error(`[AI Error] Status: ${code}, Message: ${message}`);
-          if (message.includes('api key not valid') || message.includes('api_key_invalid')) {
-            errorMsg = '유효하지 않은 API 키입니다. Settings -> Secrets에서 키를 확인해주세요.';
-          } else if (message.includes('prepayment credits') || message.includes('billing')) {
-            errorMsg = 'AI Studio API 크레딧이 소진되었습니다. 결제 정보를 확인하거나 한도 증액을 검토해주세요.';
-          } else if (code === 503 || code === 429) {
-            errorMsg = '사용자가 많아 요청이 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
-          }
-          res.status(500).json({ error: errorMsg, details: message });
+          return res.status(500).json({ error: 'AI 서비스가 응답하지 않습니다.', details: message });
         } else {
           res.write(`\n\n[오류: AI 서비스 일시 지연]`);
           res.end();
@@ -212,74 +194,42 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : '팀원'}: ${m.conte
 
     const ai = getAiClient();
     let attempts = 0;
-    while (attempts < 10) {
+    while (attempts < 3) {
       try {
         const result = await ai.models.generateContent({
           model: 'gemini-3.1-pro-preview',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: { 
             responseMimeType: 'application/json', 
-            temperature: 0.2,
-            thinkingConfig: { thinkingLevel: 'LOW' } as any
-          } as any
+            temperature: 0.1
+          }
         });
         
-        // Correct text extraction according to @google/genai SDK
         const responseText = result.text || '';
-        
-        if (!responseText) {
-          throw new Error('AI returned an empty response');
-        }
-
-        // Robust JSON extraction
-        let cleanedJson = responseText;
-        const firstBrace = responseText.indexOf('{');
-        const lastBrace = responseText.lastIndexOf('}');
-        
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-          cleanedJson = responseText.substring(firstBrace, lastBrace + 1);
-        } else {
-          cleanedJson = responseText.replace(/```json|```/g, '').trim();
-        }
+        if (!responseText) throw new Error('Empty AI response');
 
         try {
-          return res.json(JSON.parse(cleanedJson));
-        } catch (parseError) {
-          console.error('JSON Parse Error. Raw text:', responseText);
-          throw new Error('AI returned invalid JSON format');
+          return res.json(JSON.parse(responseText));
+        } catch (e) {
+          const first = responseText.indexOf('{');
+          const last = responseText.lastIndexOf('}');
+          if (first !== -1 && last !== -1) {
+            return res.json(JSON.parse(responseText.substring(first, last + 1)));
+          }
+          throw e;
         }
-      } catch (innerError: any) {
+      } catch (err: any) {
         attempts++;
-        const message = String(innerError.message || '').toLowerCase();
-        const code = innerError.status || innerError.code || 0;
-        const isRetryable = message.includes('overloaded') || 
-                           message.includes('high demand') || 
-                           message.includes('unavailable') || 
-                           message.includes('quota') ||
-                           message.includes('limit') ||
-                           code === 503 || code === 429;
-        
-        if (isRetryable && attempts < 10) {
-          const baseDelay = Math.pow(1.5, attempts) * 1500;
-          const jitter = Math.random() * 1000;
-          const delay = baseDelay + jitter;
-          console.log(`[AI Report Retry] Attempt ${attempts}/10, Waiting ${Math.round(delay)}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+        if (attempts < 3) {
+          await new Promise(r => setTimeout(r, 2000));
           continue;
         }
-        throw innerError;
+        throw err;
       }
     }
   } catch (error: any) {
     console.error('Report error:', error);
-    const message = String(error.message || '').toLowerCase();
-    let userMsg = '리포트 생성에 실패했습니다.';
-    if (message.includes('prepayment credits') || message.includes('billing')) {
-      userMsg = 'AI Studio API 크레딧이 소진되어 리포트를 생성할 수 없습니다.';
-    } else if (message.includes('quota') || message.includes('limit')) {
-      userMsg = '요청 한도(Quota)가 초과되었습니다. 잠시 후 다시 시도해주세요.';
-    }
-    res.status(500).json({ error: userMsg, details: error.message });
+    res.status(500).json({ error: '리포트 생성에 실패했습니다.', details: error.message });
   }
 });
 
