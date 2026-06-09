@@ -203,9 +203,45 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                 </div>
               </div>
               
-              <p className="text-slate-600 leading-relaxed font-bold text-lg mb-10">
+              <p className="text-slate-600 leading-relaxed font-bold text-lg mb-10 whitespace-pre-wrap">
                 {simulation.evaluation?.overall || `면담 전반적으로 ${simulation.personaName}님의 심리적 동요를 충분히 해소해주지 못한 채 일방적인 소통이 이뤄진 부분이 관찰됩니다.`}
               </p>
+
+              <div className="grid grid-cols-2 gap-6 mb-10">
+                <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3 text-blue-700">
+                    <Trophy className="w-5 h-5" />
+                    <span className="font-black text-sm uppercase">면담의 강점 (Strengths)</span>
+                  </div>
+                  <ul className="space-y-3">
+                    {Array.isArray(simulation.evaluation?.strengths) ? simulation.evaluation.strengths.map((s, i) => (
+                      <li key={i} className="text-sm text-slate-600 font-bold flex gap-2">
+                        <span className="text-blue-500 mt-1">•</span>
+                        {s}
+                      </li>
+                    )) : (
+                      <li className="text-sm text-slate-500 font-bold italic">강점 분석 데이터가 없습니다.</li>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
+                  <div className="flex items-center gap-2 mb-3 text-red-700">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span className="font-black text-sm uppercase">개선 필요점 (Improvements)</span>
+                  </div>
+                  <ul className="space-y-3">
+                    {Array.isArray(simulation.evaluation?.improvements) ? simulation.evaluation.improvements.map((s, i) => (
+                      <li key={i} className="text-sm text-slate-600 font-bold flex gap-2">
+                        <span className="text-red-500 mt-1">•</span>
+                        {s}
+                      </li>
+                    )) : (
+                      <li className="text-sm text-slate-500 font-bold italic">개선점 분석 데이터가 없습니다.</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
 
               <div className="grid grid-cols-3 gap-6 mt-auto">
                 <div className="bg-slate-50 p-6 rounded-2xl">
@@ -277,23 +313,54 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <div className="p-2 bg-blue-600 text-white rounded-xl">
                     <Zap className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-black text-[#002C5F]">핵심 스킬</h4>
+                  <h4 className="text-lg font-black text-[#002C5F]">핵심 스킬 & 맞춤 스크립트</h4>
                 </div>
-                <p className="text-sm text-slate-600 font-bold">
-                  {simulation.evaluation?.actionPlan?.interviewSkill || '적극적 경청 및 개방형 질문'}
-                </p>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase mb-1">권장 인터뷰 기법</div>
+                    <p className="text-sm text-slate-600 font-bold">
+                      {simulation.evaluation?.actionPlan?.interviewSkill || '적극적 경청 및 개방형 질문'}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase mb-2">실전 연습 스크립트</div>
+                    <ul className="space-y-2">
+                       {Array.isArray(simulation.evaluation?.actionPlan?.practiceScripts) ? simulation.evaluation.actionPlan.practiceScripts.map((s, i) => (
+                         <li key={i} className="text-xs bg-slate-50 p-2 rounded-lg text-slate-600 font-medium border border-slate-100">
+                           "{s}"
+                         </li>
+                       )) : (
+                         <li className="text-xs text-slate-400 italic">추천 스크립트가 없습니다.</li>
+                       )}
+                    </ul>
+                  </div>
+                </div>
               </div>
 
-              <div className="bg-white p-8 rounded-3xl border border-emerald-100 shadow-sm">
+              <div className="bg-white p-8 rounded-3xl border border-emerald-100 shadow-sm overflow-hidden relative">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-emerald-600 text-white rounded-xl">
                     <MessageSquare className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-black text-[#002C5F]">가이드라인</h4>
+                  <h4 className="text-lg font-black text-[#002C5F]">가이드라인 & 리스크</h4>
                 </div>
-                <p className="text-sm text-slate-600 font-bold">
-                  {simulation.evaluation?.actionPlan?.guidelines?.join(', ') || '샌드위치 피드백, 7:3 경청 원칙'}
-                </p>
+                <div className="space-y-4">
+                   <div>
+                     <div className="text-[10px] font-black text-slate-400 uppercase mb-1">행동 지침</div>
+                     <p className="text-sm text-slate-600 font-bold">
+                       {simulation.evaluation?.actionPlan?.guidelines?.join(', ') || '샌드위치 피드백, 7:3 경청 원칙'}
+                     </p>
+                   </div>
+                   <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                     <div className="flex items-center gap-2 mb-2 text-red-700">
+                       <AlertTriangle className="w-4 h-4" />
+                       <span className="text-[10px] font-black uppercase">잠재적 리스크</span>
+                     </div>
+                     <p className="text-xs text-red-600 font-bold leading-tight">
+                       {simulation.evaluation?.actionPlan?.risk || '현재 소통 패턴 유지 시 팀원의 이탈 가능성이 존재합니다.'}
+                     </p>
+                   </div>
+                </div>
               </div>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { signInWithPopup, signOut } from 'firebase/auth';
 
 interface LoginViewProps {
   onLogin: (userData: UserProfile) => void;
-  onCodeLogin: (code: string) => boolean;
+  onCodeLogin: (code: string) => Promise<boolean> | boolean;
   publicAccess?: boolean;
 }
 
@@ -170,8 +170,9 @@ ${debugInfo}
                 className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-white/40 text-sm"
               />
               <button 
-                onClick={() => {
-                  if (onCodeLogin(accessCode)) {
+                onClick={async () => {
+                  const success = await onCodeLogin(accessCode);
+                  if (success) {
                     // Success handled in App.tsx
                   } else {
                     alert('올바르지 않은 액세스 코드입니다.');

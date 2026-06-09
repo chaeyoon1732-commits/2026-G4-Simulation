@@ -107,7 +107,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         const decoder = new TextDecoder();
         let fullText = '';
         
-        const assistantMessage: Message = { role: 'assistant', content: '', emotion: '생각 중...', timestamp: Date.now() };
+        const assistantMessage: Message = { role: 'assistant', content: '', emotion: '접속 중...', timestamp: Date.now() };
         setMessages([assistantMessage]);
 
         if (reader) {
@@ -211,7 +211,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       const decoder = new TextDecoder();
       let fullText = '';
       
-      const assistantMessage: Message = { role: 'assistant', content: '', emotion: '입력 중...', timestamp: Date.now() };
+      const assistantMessage: Message = { role: 'assistant', content: '', emotion: '반응 중...', timestamp: Date.now() };
       setMessages(prev => [...prev, assistantMessage]);
 
       if (reader) {

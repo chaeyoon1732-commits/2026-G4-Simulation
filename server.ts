@@ -105,10 +105,11 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
     while (attempts < 10) {
       try {
         const result = await ai.models.generateContentStream({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.1-flash-lite',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: {
             temperature: 0.7,
+            thinkingConfig: { thinkingLevel: 'MINIMAL' } as any
           }
         });
 
@@ -166,38 +167,45 @@ app.post('/api/report', validateApiKey, async (req, res) => {
     const { persona, scenario, history } = req.body;
     const systemPrompt = `
 귀하는 현대자동차 리더십 코칭 전문가입니다. 
-장황한 분석은 배제하고, 대화의 핵심과 실전 솔루션만 신속하게 도출하여 리포트를 작성하세요.
+면담 내용을 심도 있게 분석하여 리더의 역량을 성장시킬 수 있는 상세 리포트를 작성하세요.
 
 [시나리오] ${scenario.title} - ${persona.name}
 [대화 로그]
 ${history.map((m: any) => `${m.role === 'user' ? '리더' : '팀원'}: ${m.content}`).join('\n')}
 
 [작성 규칙]
-1. 모든 섹션은 핵심만 1~2문장으로 기술하세요.
-2. 실전 솔루션 위주로 당장 내일 적용할 수 있는 대체 스크립트를 제공하세요.
-3. 반드시 다음 JSON 형식을 100% 준수하세요.
+1. 리포트는 구체적이고 전문적인 언어로 작성하세요.
+2. '종합 총평'은 리더의 전반적인 의사소통 습관, 비언어적 뉘앙스 추정, 그리고 이 면담이 팀 성과에 미칠 영향을 포함하여 3-4문장으로 심도 있게 작성하세요.
+3. '강점'과 '개선점' 섹션에는 각각 최소 2-3개의 구체적인 발화 사례를 인용하고, 그 발언이 팀원의 심리(안정감, 동기부여, 반발 등)에 어떤 영향을 주었는지 전문적인 코칭 관점에서 분석하세요.
+4. 반드시 다음 JSON 형식을 100% 준수하세요.
 
 {
-  "overall": "리더의 소통 스타일 한 줄 요약 및 총평",
-  "psychology": "팀원의 심리 변화 핵심 요약",
-  "leadership": "리더십 스타일 진단 (간략히)",
-  "needs": "팀원이 원했던 핵심 니즈",
-  "strengths": "가장 좋았던 발언 1개 인용 및 이유",
-  "improvements": "아쉬웠던 발언 1개 인용 및 이유",
+  "overall": "리더의 소통 스타일에 대한 심층 진단 및 종합 총평 (3~4문장)",
+  "psychology": "팀원의 감정 변화 곡선 및 심리적 배경 분석",
+  "leadership": "리더십 유형 분류 및 리더십 발휘 수준 진단",
+  "needs": "팀원이 표현했거나 숨겨져 있던 핵심 니즈(Need) 분석",
+  "strengths": [
+    "구체적인 강점 발언 인용 1 - 효과 분석",
+    "구체적인 강점 발언 인용 2 - 효과 분석"
+  ],
+  "improvements": [
+    "구체적인 개선 필요 발언 인용 1 - 부정적 영향 및 원인 분석",
+    "구체적인 개선 필요 발언 인용 2 - 부정적 영향 및 원인 분석"
+  ],
   "actionPlan": {
     "quote": "다음 대화 추천 첫 마디",
-    "interviewSkill": "추천 기법 명칭",
+    "interviewSkill": "추천 기법 명칭 (예: GROW 모델, 피드백 샌드위치, 적극적 경청 등)",
     "negativePatterns": [
       {
-        "pattern": "반복되는 부정적 화법",
-        "actualQuote": "실제 발언",
-        "impact": "팀원에게 준 영향",
-        "replacementScripts": ["대체 스크립트 1", "대체 스크립트 2"]
+        "pattern": "반복되는 부정적 화법 패턴",
+        "actualQuote": "실제 발언 사례",
+        "impact": "팀원에게 준 부정적 심리 영향",
+        "replacementScripts": ["교정된 대체 스크립트 1", "교정된 대체 스크립트 2"]
       }
     ],
-    "practiceScripts": ["연습 스크립트 1", "연습 스크립트 2"],
-    "guidelines": ["당장 교정할 습관", "면담 전략"],
-    "risk": "소통 스타일 고착 시 리스크"
+    "practiceScripts": ["향후 유사 상황 시 연습 스크립트 1", "향후 유사 상황 시 연습 스크립트 2"],
+    "guidelines": ["지속적으로 교정할 습관 1", "향후 면담 전략 가이드라인 2"],
+    "risk": "현재의 부적절한 소통 패턴 지속 시 예상되는 조직/인적 리스크"
   }
 }
 `;
@@ -207,11 +215,12 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : '팀원'}: ${m.conte
     while (attempts < 10) {
       try {
         const result = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.1-pro-preview',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: { 
             responseMimeType: 'application/json', 
-            temperature: 0.2
+            temperature: 0.2,
+            thinkingConfig: { thinkingLevel: 'LOW' } as any
           } as any
         });
         

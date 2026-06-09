@@ -6,7 +6,7 @@ import LoginView from './components/LoginView';
 import AdminView from './components/AdminView';
 import ReportView from './components/ReportView';
 import { auth } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
 import { Division, Persona, Scenario, UserProfile, SimulationRecord } from './types';
 import { LogOut, ShieldCheck, User as UserIcon, Settings, Cloud, CloudOff } from 'lucide-react';
 import { dbService } from './services/dbService';
@@ -94,19 +94,25 @@ export default function App() {
     localStorage.setItem('simulation_user', JSON.stringify(newUser));
   };
 
-  const handleCodeLogin = (code: string) => {
+  const handleCodeLogin = async (code: string) => {
     if (code === ADMIN_PASSWORD) {
-      const guestUser: UserProfile = {
-        uid: 'guest-' + Date.now(),
-        displayName: 'Guest Leader',
-        email: 'guest@simulation.local',
-        affiliation: '현대자동차',
-        group: 'Guest',
-        isAdmin: true,
-        photoURL: null,
-      };
-      handleLogin(guestUser);
-      return true;
+      try {
+        const result = await signInAnonymously(auth);
+        const guestUser: UserProfile = {
+          uid: result.user.uid,
+          displayName: 'Guest Leader',
+          email: 'guest@simulation.local',
+          affiliation: '현대자동차',
+          group: 'Guest',
+          isAdmin: true, // Special case for master passcode
+          photoURL: null,
+        };
+        handleLogin(guestUser);
+        return true;
+      } catch (e) {
+        console.error('Anonymous auth error:', e);
+        return false;
+      }
     }
     return false;
   };

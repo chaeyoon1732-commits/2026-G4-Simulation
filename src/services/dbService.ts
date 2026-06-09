@@ -7,6 +7,7 @@ import {
   deleteDoc, 
   query, 
   orderBy, 
+  limit,
   serverTimestamp,
   getDoc,
   getDocFromServer
@@ -161,20 +162,31 @@ export const dbService = {
 
   async getSimulations(): Promise<SimulationRecord[]> {
     try {
-      // Fetch without orderBy first to avoid missing index errors
-      const q = query(collection(db, SIMULATIONS_COL));
+      // Use orderBy and limit to get the most recent 100 records
+      const q = query(
+        collection(db, SIMULATIONS_COL), 
+        orderBy('timestamp', 'desc'), 
+        limit(100)
+      );
       const snapshot = await getDocs(q);
-      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
-      
-      // Sort manually in JS
-      return records.sort((a, b) => {
-        const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp instanceof Date ? a.timestamp.getTime() : (typeof a.timestamp === 'number' ? a.timestamp : 0));
-        const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp instanceof Date ? b.timestamp.getTime() : (typeof b.timestamp === 'number' ? b.timestamp : 0));
-        return timeB - timeA;
-      });
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, SIMULATIONS_COL);
-      return [];
+      console.warn('[dbService] getSimulations query error, falling back to client-side sort:', error);
+      // Fallback: fetch without orderBy if index is missing
+      try {
+        const q = query(collection(db, SIMULATIONS_COL), limit(100));
+        const snapshot = await getDocs(q);
+        const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
+        
+        return records.sort((a, b) => {
+          const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp instanceof Date ? a.timestamp.getTime() : (typeof a.timestamp === 'number' ? a.timestamp : 0));
+          const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp instanceof Date ? b.timestamp.getTime() : (typeof b.timestamp === 'number' ? b.timestamp : 0));
+          return timeB - timeA;
+        });
+      } catch (fallbackError) {
+        handleFirestoreError(fallbackError, OperationType.LIST, SIMULATIONS_COL);
+        return [];
+      }
     }
   },
 

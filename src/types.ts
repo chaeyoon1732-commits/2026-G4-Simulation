@@ -30,8 +30,8 @@ export interface SimulationReport {
   psychology: string;
   leadership: string;
   needs: string;
-  strengths: string;
-  improvements: string;
+  strengths: string[];
+  improvements: string[];
   actionPlan: {
     quote: string;
     interviewSkill?: string;

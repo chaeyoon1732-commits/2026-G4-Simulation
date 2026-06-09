@@ -336,7 +336,7 @@ export default function AdminView() {
                         </td>
                       </tr>
                     ) : (
-                      simulations.slice(0, 20).map((sim) => {
+                      simulations.slice(0, 100).map((sim) => {
                         const avgScore = sim.metrics ? Math.round((sim.metrics.rapport + sim.metrics.analysis + sim.metrics.solution + sim.metrics.engagement) / 4) : 0;
                         let dateStr = 'Just now';
                         try {
@@ -470,6 +470,28 @@ export default function AdminView() {
                   >
                     <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.publicAccess ? 'translate-x-7' : 'translate-x-1'}`} />
                   </button>
+                </div>
+
+                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-slate-800">AI 모델 구성 (Paid Tier Active)</h4>
+                      <p className="text-xs text-slate-500">현재 시뮬레이션 및 리포트 생성에 사용되는 AI 모델 정보입니다.</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase">Paid Key</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-white rounded-2xl border border-slate-100">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Chat Model</div>
+                      <div className="font-mono text-sm text-h-blue">gemini-3.1-flash-lite</div>
+                    </div>
+                    <div className="p-4 bg-white rounded-2xl border border-slate-100">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Analysis Model</div>
+                      <div className="font-mono text-sm text-h-blue">gemini-3.1-pro-preview</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100">
