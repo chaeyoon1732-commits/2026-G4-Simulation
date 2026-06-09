@@ -118,10 +118,11 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
             const chunk = decoder.decode(value, { stream: true });
             fullText += chunk;
             
-            // UI display text (filter out the metadata tags)
+            // UI display text (filter out the metadata tags and any trailing JSON)
             let displayText = fullText
               .replace(/\[감정:\s?[^\]]*\]?/g, '')
               .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}?\]?/g, '')
+              .replace(/\{"metrics":\s*\{[\s\S]*?\}\s*,\s*"goals":\s*\[[\s\S]*?\]\}/g, '') // Fallback for raw JSON
               .replace(/\s+/g, ' ')
               .trim();
 
@@ -137,7 +138,8 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
           const emotionMatch = fullText.match(/\[감정:\s?([^\]]+)\]/);
           const emotion = emotionMatch ? emotionMatch[1] : '중립';
           
-          const analysisMatch = fullText.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
+          const analysisMatch = fullText.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/) || 
+                                fullText.match(/(\{"metrics":\s*\{[\s\S]*?\}\s*,\s*"goals":\s*\[[\s\S]*?\]\})/);
           if (analysisMatch) {
             try {
               const analysis = JSON.parse(analysisMatch[1]);
@@ -151,6 +153,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
           let finalDisplayText = fullText
             .replace(/\[감정:\s?[^\]]+\]/g, '')
             .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
+            .replace(/\{"metrics":\s*\{[\s\S]*?\}\s*,\s*"goals":\s*\[[\s\S]*?\]\}/g, '') // Fallback for raw JSON
             .replace(/\s+/g, ' ')
             .trim();
 
@@ -225,6 +228,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
           let displayText = fullText
             .replace(/\[감정:\s?[^\]]*\]?/g, '')
             .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}?\]?/g, '')
+            .replace(/\{"metrics":\s*\{[\s\S]*?\}\s*,\s*"goals":\s*\[[\s\S]*?\]\}/g, '') // Fallback for raw JSON
             .replace(/\s+/g, ' ')
             .trim();
 
@@ -241,7 +245,8 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         const emotionMatch = fullText.match(/\[감정:\s?([^\]]+)\]/);
         const emotion = emotionMatch ? emotionMatch[1] : currentEmotion;
         
-        const analysisMatch = fullText.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/);
+        const analysisMatch = fullText.match(/\[분석:\s?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\]/) ||
+                              fullText.match(/(\{"metrics":\s*\{[\s\S]*?\}\s*,\s*"goals":\s*\[[\s\S]*?\]\})/);
         if (analysisMatch) {
           try {
             const analysis = JSON.parse(analysisMatch[1]);
@@ -255,6 +260,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         let finalDisplayText = fullText
           .replace(/\[감정:\s?[^\]]+\]/g, '')
           .replace(/\[분석:\s?\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}\]/g, '')
+          .replace(/\{"metrics":\s*\{[\s\S]*?\}\s*,\s*"goals":\s*\[[\s\S]*?\]\}/g, '') // Fallback for raw JSON
           .replace(/\s+/g, ' ')
           .trim();
 
