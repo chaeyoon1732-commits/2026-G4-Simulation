@@ -105,10 +105,9 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
     while (attempts < 10) {
       try {
         const result = await ai.models.generateContentStream({
-          model: 'gemini-3.5-flash',
+          model: 'gemini-1.5-flash',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: {
-            thinkingConfig: { thinkingLevel: 'LOW' } as any,
             temperature: 0.7,
           }
         });
@@ -208,12 +207,11 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : '팀원'}: ${m.conte
     while (attempts < 10) {
       try {
         const result = await ai.models.generateContent({
-          model: 'gemini-3.5-flash',
+          model: 'gemini-1.5-flash',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
           config: { 
             responseMimeType: 'application/json', 
-            temperature: 0.2,
-            thinkingConfig: { thinkingLevel: 'LOW' } as any
+            temperature: 0.2
           } as any
         });
         
