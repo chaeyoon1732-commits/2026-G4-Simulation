@@ -316,13 +316,12 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         evaluationData = await analysisResponse.json();
       } else {
         const errData = await analysisResponse.json().catch(() => ({}));
-        throw new Error(errData.error || 'AI 분석 중 오류가 발생했습니다.');
+        console.warn('AI Analysis failed, but will still save simulation record:', errData.error);
+        setReportError(errData.error || 'AI 분석 중 오류가 발생했습니다. (기록은 저장됩니다)');
       }
     } catch (err: any) {
       console.error('Failed to get AI analysis report:', err);
-      setReportError(err.message || '네트워크 오류로 분석에 실패했습니다.');
-      setIsGeneratingReport(false);
-      return; // Stop and let user retry
+      setReportError(err.message || '네트워크 오류로 분석에 실패했습니다. (기록은 저장됩니다)');
     } finally {
       setIsGeneratingReport(false);
     }
@@ -354,20 +353,24 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       evaluation: evaluationData
     };
 
+    // ALWAYS try to save if there was a conversation
     if (cleanMessages.length > 1) {
       try {
         console.log('[ChatView] Persisting simulation result to Firestore...');
-        await dbService.saveSimulation(simulationData);
+        const savedId = await dbService.saveSimulation(simulationData);
+        simulationData.id = savedId;
       } catch (err) {
         console.error('Final simulation save failed:', err);
       }
     }
     
+    // If we have an error and no evaluation data, let the user know they can see the chat log at least
+    // But if turn count was enough, we proceed to show whatever we have
     if (turnCount >= 3) {
       onShowReport(simulationData);
     } else {
-      if (isAuto) {
-        alert('면담 시간이 종료되었습니다. (최소 대화 턴 미달)');
+      if (isAuto && !evaluationData) {
+        alert('면담 시간이 종료되었습니다. (분석 실패)');
       }
       onExit();
     }

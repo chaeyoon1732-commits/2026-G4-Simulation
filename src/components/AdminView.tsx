@@ -313,12 +313,25 @@ export default function AdminView() {
             {/* Recent History Table */}
             <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 text-sm">최근 시뮬레이션 로그</h3>
-                <span className="text-[10px] text-slate-400 font-mono">Real-time Feed</span>
+                <div className="flex items-center gap-4">
+                  <h3 className="font-bold text-slate-800 text-sm">최근 시뮬레이션 로그</h3>
+                  <div className="flex gap-2">
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold">
+                      전체: {simulations.length}
+                    </span>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-[10px] font-bold">
+                      오늘: {simulations.filter(s => {
+                        const date = s.timestamp?.toDate ? s.timestamp.toDate() : (s.timestamp ? new Date(s.timestamp) : null);
+                        return date && date.toDateString() === new Date().toDateString();
+                      }).length}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">Showing up to 500 records</span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b text-slate-500 uppercase font-bold tracking-wider">
+                  <thead className="bg-slate-50 border-b text-slate-500 uppercase font-bold tracking-wider sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="px-6 py-3">일시</th>
                       <th className="px-6 py-3">사용자 / 소속 / 지점</th>
@@ -336,23 +349,31 @@ export default function AdminView() {
                         </td>
                       </tr>
                     ) : (
-                      simulations.slice(0, 100).map((sim) => {
+                      simulations.map((sim) => {
                         const avgScore = sim.metrics ? Math.round((sim.metrics.rapport + sim.metrics.analysis + sim.metrics.solution + sim.metrics.engagement) / 4) : 0;
+                        let dateObj: Date | null = null;
                         let dateStr = 'Just now';
                         try {
                           if (sim.timestamp?.toDate) {
-                            dateStr = new Date(sim.timestamp.toDate()).toLocaleString();
+                            dateObj = sim.timestamp.toDate();
+                            dateStr = dateObj!.toLocaleString();
                           } else if (sim.timestamp) {
-                            dateStr = new Date(sim.timestamp as any).toLocaleString();
+                            dateObj = new Date(sim.timestamp as any);
+                            dateStr = dateObj.toLocaleString();
                           }
                         } catch (e) {
                           console.warn('Timestamp render error', e);
                         }
 
+                        const isToday = dateObj && dateObj.toDateString() === new Date().toDateString();
+
                         return (
-                          <tr key={sim.id} className="hover:bg-slate-50 transition-all">
-                            <td className="px-6 py-4 font-medium text-slate-400">
-                              {dateStr}
+                          <tr key={sim.id} className={`hover:bg-slate-50 transition-all ${isToday ? 'bg-blue-50/20' : ''}`}>
+                            <td className="px-6 py-4 font-medium">
+                              <div className="text-slate-400">{dateStr}</div>
+                              {isToday && (
+                                <span className="mt-1 inline-block px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded text-[9px] font-black uppercase tracking-tighter">Today</span>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <div className="font-bold text-slate-800">{sim.userName}</div>

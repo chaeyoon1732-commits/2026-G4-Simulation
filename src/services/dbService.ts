@@ -162,11 +162,11 @@ export const dbService = {
 
   async getSimulations(): Promise<SimulationRecord[]> {
     try {
-      // Use orderBy and limit to get the most recent 100 records
+      // Use orderBy and limit to get the most recent records
       const q = query(
         collection(db, SIMULATIONS_COL), 
         orderBy('timestamp', 'desc'), 
-        limit(100)
+        limit(500)
       );
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
@@ -174,14 +174,21 @@ export const dbService = {
       console.warn('[dbService] getSimulations query error, falling back to client-side sort:', error);
       // Fallback: fetch without orderBy if index is missing
       try {
-        const q = query(collection(db, SIMULATIONS_COL), limit(100));
+        // Increase limit in fallback to ensure today's records are likely fetched
+        const q = query(collection(db, SIMULATIONS_COL), limit(1000));
         const snapshot = await getDocs(q);
         const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
         
         return records.sort((a, b) => {
-          const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp instanceof Date ? a.timestamp.getTime() : (typeof a.timestamp === 'number' ? a.timestamp : 0));
-          const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp instanceof Date ? b.timestamp.getTime() : (typeof b.timestamp === 'number' ? b.timestamp : 0));
-          return timeB - timeA;
+          const getTime = (ts: any) => {
+            if (!ts) return 0;
+            if (ts.toMillis) return ts.toMillis();
+            if (ts instanceof Date) return ts.getTime();
+            if (typeof ts === 'number') return ts;
+            if (typeof ts === 'string') return new Date(ts).getTime();
+            return 0;
+          };
+          return getTime(b.timestamp) - getTime(a.timestamp);
         });
       } catch (fallbackError) {
         handleFirestoreError(fallbackError, OperationType.LIST, SIMULATIONS_COL);
