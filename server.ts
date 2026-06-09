@@ -87,12 +87,11 @@ MBTI: ${persona.mbti}
    - 서비스엔지니어(정비직)의 경우: 센터 입고, 차량 진단, 부품 수급, 정비 리드타임(L/T), 보증 수리, 과잉 정비 오해, 작업 완성도 등 서비스 현장 용어를 사용하세요.
 3. 호칭 준수: 상대방(리더)을 반드시 "${userTitle}" 또는 "${userTitle}님"이라고 부르세요.
 4. 난이도 조절: 리더가 경청, 공감, 개방형 질문을 할 때만 마음을 조금씩 여세요. 지시적이거나 비난조라면 반발하거나 침묵하세요.
-5. 짧은 호흡: 절대로 길게 설명하지 마세요. 실제 대화처럼 한 번에 1~3문장 이내로만 답변하세요.
-6. 감정 상태 포함: 답변 끝에 반드시 [감정: 상태] 형태로 현재의 감정 상태를 요점만 적어주세요.
-7. 분석 데이터 포함: 답변 끝에 반드시 [분석: {"metrics": {"rapport": 0-100, "analysis": 0-100, "solution": 0-100, "engagement": 0-100}, "goals": [true/false, true/false, true/false]}] 형식으로 현재까지의 대화 수준을 평가하세요. 
-   - 이 분석 데이터는 반드시 답변의 가장 마지막에 JSON 형식을 지켜 위치시켜야 합니다.
-   - goals: 1. 아이스브레이킹/공감 여부, 2. 원인 파악 시도 여부, 3. 개선 약속 도출 여부
-${isFirstMessage ? `8. 시작 방식: 현재 상황에 이미 처해있는 상태로, ${userTitle}이 면담을 시작하자고 했거나 본인이 찾아온 시점입니다. 별도의 요약 없이 바로 대화를 시작하는 첫 마디를 하세요.` : ''}
+5. 매우 짧은 호흡: 실제 대화처럼 한 번에 1~2문장 이내로만 매우 간략하게 답변하세요. 장황한 설명은 절대 금지합니다.
+6. 감정 상태 포함: 답변 끝에 [감정: 상태] 형태로 현재의 감정을 짧게 적어주세요.
+7. 분석 데이터 포함: 답변 끝에 [분석: {"metrics": {"rapport": 0-100, "analysis": 0-100, "solution": 0-100, "engagement": 0-100}, "goals": [true/false, true/false, true/false]}] 형식의 JSON 데이터를 한 줄로 포함하세요. 
+   - goals: 1. 공감/아이스브레이킹, 2. 원인 파악, 3. 개선 약속 도출 여부
+${isFirstMessage ? `8. 시작 방식: 상황에 맞춰 1~2문장으로 짧게 첫 마디를 건네며 대화를 시작하세요.` : ''}
 
 현재 대화 기록:
 ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTitle : persona.name}: ${m.content}`).join('\n') : ''}
@@ -103,11 +102,15 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
     res.setHeader('Transfer-Encoding', 'chunked');
 
     let attempts = 0;
-    while (attempts < 5) {
+    while (attempts < 10) {
       try {
         const result = await ai.models.generateContentStream({
           model: 'gemini-3.5-flash',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+          config: {
+            thinkingConfig: { thinkingLevel: 'LOW' } as any,
+            temperature: 0.7,
+          }
         });
 
         for await (const chunk of result) {
@@ -120,10 +123,19 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
         attempts++;
         const message = String(innerError.message || '').toLowerCase();
         const code = innerError.status || innerError.code || 0;
-        const isRetryable = message.includes('overloaded') || message.includes('high demand') || message.includes('unavailable') || code === 503 || code === 429;
+        const isRetryable = message.includes('overloaded') || 
+                           message.includes('high demand') || 
+                           message.includes('unavailable') || 
+                           message.includes('quota') ||
+                           message.includes('limit') ||
+                           code === 503 || code === 429;
         
-        if (isRetryable && attempts < 5) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
+        if (isRetryable && attempts < 10) {
+          const baseDelay = Math.pow(1.5, attempts) * 1000;
+          const jitter = Math.random() * 800; // Add jitter to prevent thundering herd
+          const delay = baseDelay + jitter;
+          console.log(`[AI Retry] Attempt ${attempts}/10, Waiting ${Math.round(delay)}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
         if (!res.headersSent) {
@@ -131,8 +143,10 @@ ${Array.isArray(history) ? history.map((m: any) => `${m.role === 'user' ? userTi
           console.error(`[AI Error] Status: ${code}, Message: ${message}`);
           if (message.includes('api key not valid') || message.includes('api_key_invalid')) {
             errorMsg = '유효하지 않은 API 키입니다. Settings -> Secrets에서 키를 확인해주세요.';
+          } else if (message.includes('prepayment credits') || message.includes('billing')) {
+            errorMsg = 'AI Studio API 크레딧이 소진되었습니다. 결제 정보를 확인하거나 한도 증액을 검토해주세요.';
           } else if (code === 503 || code === 429) {
-            errorMsg = 'AI 서비스 과부하로 인해 잠시 후 다시 시도해주세요.';
+            errorMsg = '사용자가 많아 요청이 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
           }
           res.status(500).json({ error: errorMsg, details: message });
         } else {
@@ -152,70 +166,55 @@ app.post('/api/report', validateApiKey, async (req, res) => {
   try {
     const { persona, scenario, history } = req.body;
     const systemPrompt = `
-귀하는 현대자동차 리서치/코칭 분야의 '마스터 등급' AI 리더십 분석 전문가입니다. 
-단순 대화 요약이 아닌, 코칭 결과에 기반하여 사용자의 '무의식적인 말투', '단어 선택의 패턴', '공감의 깊이'를 데이터 기반으로 해부하여 리포트를 작성하세요.
+귀하는 현대자동차 리더십 코칭 전문가입니다. 
+장황한 분석은 배제하고, 대화의 핵심과 실전 솔루션만 신속하게 도출하여 리포트를 작성하세요.
 
-[시나리오 context]
-- 제목: ${scenario.title}
-- 내용: ${scenario.description}
-- 팀원 정보: ${persona.name}(${persona.role}, ${persona.mbti} - ${persona.style})
+[시나리오] ${scenario.title} - ${persona.name}
+[대화 로그]
+${history.map((m: any) => `${m.role === 'user' ? '리더' : '팀원'}: ${m.content}`).join('\n')}
 
-[대화 로그 데이터]
-${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.content}`).join('\n')}
-
-[리포트 작성 엄격 규칙]
-1. 인용문 중심 분석: 모든 '강점'과 '개선점'에는 대화 로그에서 사용자가 실제로 한 말(따옴표 "")을 반드시 포함하고, 그 말이 상대방에게 준 심리적 타격을 분석하세요.
-2. 립서비스 금지: "잘했습니다" 같은 모호한 칭찬은 배제합니다. "리더가 ~라고 질문한 것은 개방형 질문으로서 상대방의 본심을 끌어내는 데 기여했습니다"와 같이 분석하세요.
-3. 실전 면담 스킬 전수: 액션 플랜에는 '면담 스킬 제언' 섹션을 강화하여, 구체적인 개선 발언과 연습용 스크립트(Script)를 상황별로 제공하세요. 특히, 사용자가 시뮬레이션 중 노출한 '부정적 화법 패턴'을 정확히 분석하고, 이를 현대자동차 현장 맥락에 맞는 '긍정적 대체 스크립트'로 변환하여 제시해야 합니다.
-4. 직무 밀착 솔루션: ${persona.division} 부문의 실제 현장 고충(영업 실적, CS 만족도, 정비 공임 등)과 연결된 리더십 비전을 제시하세요.
-
-반드시 다음 JSON 형식을 100% 준수하여 답변하세요. (JSON 외 텍스트 포함 시 시스템 오류 발생)
+[작성 규칙]
+1. 모든 섹션은 핵심만 1~2문장으로 기술하세요.
+2. 실전 솔루션 위주로 당장 내일 적용할 수 있는 대체 스크립트를 제공하세요.
+3. 반드시 다음 JSON 형식을 100% 준수하세요.
 
 {
-  "overall": "리더의 고유한 소통 스타일을 정의하고, 전체적인 소통 유효성을 전문적으로 총평 (최소 5문장)",
-  "psychology": "사용자의 특정 발언 이후 팀원의 심리 변화(경계심 고조, 신뢰 형성 등)를 정밀 분석",
-  "leadership": "리더의 화법 원형 진단 및 대화 패턴에 숨겨진 리더십 자아 분석",
-  "needs": "팀원이 직접 말하지 않았으나 대화 속에 간절히 원했던 '정서적 결핍' 또는 '실질적 지원' 포인트",
-  "strengths": "가장 효과적이었던 순간의 발언 인용 및 해당 발언의 성과 분석",
-  "improvements": "가장 아쉬웠던 발언 인용 및 그 발언을 들었을 때 팀원이 느꼈을 감정의 원인 분석",
+  "overall": "리더의 소통 스타일 한 줄 요약 및 총평",
+  "psychology": "팀원의 심리 변화 핵심 요약",
+  "leadership": "리더십 스타일 진단 (간략히)",
+  "needs": "팀원이 원했던 핵심 니즈",
+  "strengths": "가장 좋았던 발언 1개 인용 및 이유",
+  "improvements": "아쉬웠던 발언 1개 인용 및 이유",
   "actionPlan": {
-    "quote": "다음 대화 재개 시 상대방의 마음을 열 수 있는 추천 스크립트",
-    "interviewSkill": "이 사용자를 위한 맞춤형 면담 스킬 제언 (예: 개방형 질문법, 비폭력 대화, I-Message 등 구체적 명칭 포함)",
+    "quote": "다음 대화 추천 첫 마디",
+    "interviewSkill": "추천 기법 명칭",
     "negativePatterns": [
       {
-        "pattern": "자신도 모르게 반복한 부정적 화법 패턴 명칭",
-        "actualQuote": "해당 패턴이 나타난 실제 대화 인용",
-        "impact": "이 화법이 팀원(현대차 직원)에게 준 부정적 심리 효과",
-        "replacementScripts": [
-          "현대자동차 현장 맞춤형 긍정 대체 스크립트 1",
-          "현대자동차 현장 맞춤형 긍정 대체 스크립트 2",
-          "현대자동차 현장 맞춤형 긍정 대체 스크립트 3"
-        ]
+        "pattern": "반복되는 부정적 화법",
+        "actualQuote": "실제 발언",
+        "impact": "팀원에게 준 영향",
+        "replacementScripts": ["대체 스크립트 1", "대체 스크립트 2"]
       }
     ],
-    "practiceScripts": [
-      "연습용 스크립트 1: 상황 및 대사",
-      "연습용 스크립트 2: 상황 및 대사",
-      "연습용 스크립트 3: 상황 및 대사"
-    ],
-    "guidelines": [
-      "지금 당장 교정해야 할 언어 습관",
-      "이 팀원의 특성을 고려한 면담 전략",
-      "갈등 재발 시 실질적 행동 규칙"
-    ],
-    "risk": "현재의 소통 스타일이 고착화될 경우 발생할 조직 관리 리스크"
+    "practiceScripts": ["연습 스크립트 1", "연습 스크립트 2"],
+    "guidelines": ["당장 교정할 습관", "면담 전략"],
+    "risk": "소통 스타일 고착 시 리스크"
   }
 }
 `;
 
     const ai = getAiClient();
     let attempts = 0;
-    while (attempts < 5) {
+    while (attempts < 10) {
       try {
         const result = await ai.models.generateContent({
           model: 'gemini-3.5-flash',
           contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-          config: { responseMimeType: 'application/json', temperature: 0.2 } as any
+          config: { 
+            responseMimeType: 'application/json', 
+            temperature: 0.2,
+            thinkingConfig: { thinkingLevel: 'LOW' } as any
+          } as any
         });
         
         // Correct text extraction according to @google/genai SDK
@@ -246,9 +245,19 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
         attempts++;
         const message = String(innerError.message || '').toLowerCase();
         const code = innerError.status || innerError.code || 0;
-        const isRetryable = message.includes('overloaded') || message.includes('high demand') || message.includes('unavailable') || code === 503 || code === 429;
-        if (isRetryable && attempts < 5) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1500));
+        const isRetryable = message.includes('overloaded') || 
+                           message.includes('high demand') || 
+                           message.includes('unavailable') || 
+                           message.includes('quota') ||
+                           message.includes('limit') ||
+                           code === 503 || code === 429;
+        
+        if (isRetryable && attempts < 10) {
+          const baseDelay = Math.pow(1.5, attempts) * 1500;
+          const jitter = Math.random() * 1000;
+          const delay = baseDelay + jitter;
+          console.log(`[AI Report Retry] Attempt ${attempts}/10, Waiting ${Math.round(delay)}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
         throw innerError;
@@ -256,7 +265,14 @@ ${history.map((m: any) => `${m.role === 'user' ? '리더' : persona.name}: ${m.c
     }
   } catch (error: any) {
     console.error('Report error:', error);
-    res.status(500).json({ error: 'Report generation failed', details: error.message });
+    const message = String(error.message || '').toLowerCase();
+    let userMsg = '리포트 생성에 실패했습니다.';
+    if (message.includes('prepayment credits') || message.includes('billing')) {
+      userMsg = 'AI Studio API 크레딧이 소진되어 리포트를 생성할 수 없습니다.';
+    } else if (message.includes('quota') || message.includes('limit')) {
+      userMsg = '요청 한도(Quota)가 초과되었습니다. 잠시 후 다시 시도해주세요.';
+    }
+    res.status(500).json({ error: userMsg, details: error.message });
   }
 });
 

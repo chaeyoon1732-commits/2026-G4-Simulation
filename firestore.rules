@@ -20,14 +20,26 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'chaeyoon1732@gmail.com' || 
-        request.auth.token.email.split('@')[1] == 'hyundai.com'
-      );
+      return isSignedIn() && 
+             request.auth.token.email_verified == true && (
+               request.auth.token.email == 'chaeyoon1732@gmail.com' || 
+               (request.auth.token.email.size() > 12 && request.auth.token.email.split('@')[1] == 'hyundai.com')
+             );
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Settings ---
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSettings(request.resource.data);
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAny(['publicAccess']) &&
+             (data.get('publicAccess', false) is boolean);
     }
 
     // --- Personas ---
@@ -79,12 +91,6 @@ service cloud.firestore {
              && data.userEmail is string
              && data.messages.size() > 0;
              // Temporarily removing timestamp strict check to ensure save succeeds
-    }
-
-    // --- Settings ---
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
     }
   }
 }

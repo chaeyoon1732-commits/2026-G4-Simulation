@@ -47,6 +47,7 @@ export default function AdminView() {
   const [selectedSimulation, setSelectedSimulation] = useState<SimulationRecord | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [settings, setSettings] = useState<any>({ publicAccess: false });
+  const [adminModalTab, setAdminModalTab] = useState<'report' | 'chat'>('report');
 
   useEffect(() => {
     fetchData();
@@ -710,7 +711,21 @@ export default function AdminView() {
       {selectedSimulation && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex flex-col pt-10">
           <div className="flex-1 bg-white rounded-t-[3rem] shadow-2xl overflow-hidden flex flex-col relative">
-            <div className="absolute top-6 right-10 z-[110]">
+            <div className="absolute top-6 right-10 z-[110] flex items-center gap-4">
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                <button 
+                  onClick={() => setAdminModalTab('report')}
+                  className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${adminModalTab === 'report' ? 'bg-white text-h-blue shadow-sm' : 'text-slate-500'}`}
+                >
+                  기능 분석 리포트
+                </button>
+                <button 
+                  onClick={() => setAdminModalTab('chat')}
+                  className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${adminModalTab === 'chat' ? 'bg-white text-h-blue shadow-sm' : 'text-slate-500'}`}
+                >
+                 대화 이력 (Chat Log)
+                </button>
+              </div>
               <button 
                 onClick={() => setSelectedSimulation(null)}
                 className="w-12 h-12 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full flex items-center justify-center transition-all shadow-lg"
@@ -718,8 +733,54 @@ export default function AdminView() {
                 <X className="w-6 h-6" />
               </button>
             </div>
+            
             <div className="flex-1 overflow-y-auto">
-               <ReportView simulation={selectedSimulation} onRestart={() => setSelectedSimulation(null)} />
+               {adminModalTab === 'report' ? (
+                 <ReportView simulation={selectedSimulation} onRestart={() => setSelectedSimulation(null)} />
+               ) : (
+                 <div className="max-w-4xl mx-auto py-24 px-8">
+                   <div className="bg-white p-12 shadow-xl border border-slate-100 rounded-[2.5rem]">
+                     <div className="flex items-center gap-4 mb-12 pb-8 border-b">
+                        <div className="p-4 bg-blue-50 rounded-2xl">
+                          <MessageSquare className="w-8 h-8 text-[#002C5F]" />
+                        </div>
+                        <div>
+                          <h2 className="text-3xl font-black text-[#002C5F]">Full Chat Log Analysis</h2>
+                          <p className="text-slate-500 font-bold">사용자: {selectedSimulation.userName} ({selectedSimulation.userEmail})</p>
+                        </div>
+                     </div>
+                     
+                     <div className="space-y-8">
+                        {selectedSimulation.messages.map((m, idx) => (
+                          <div key={idx} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                            <div className={`flex items-center gap-3 mb-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                                m.role === 'user' ? 'bg-[#002C5F] text-white' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {m.role === 'user' ? 'Leader' : 'System/Member'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold">
+                                {new Date(m.timestamp || Date.now()).toLocaleTimeString()}
+                              </span>
+                              {m.emotion && (
+                                <span className="text-[10px] font-bold text-blue-500 px-3 py-1 bg-blue-50 rounded-full">
+                                  {m.emotion}
+                                </span>
+                              )}
+                            </div>
+                            <div className={`p-6 rounded-3xl text-base leading-relaxed font-medium max-w-[90%] border ${
+                              m.role === 'user' 
+                                ? 'bg-slate-50 border-slate-200 text-slate-800 rounded-tr-none' 
+                                : 'bg-white border-slate-100 text-slate-700 rounded-tl-none shadow-sm'
+                            }`}>
+                              {m.content}
+                            </div>
+                          </div>
+                        ))}
+                     </div>
+                   </div>
+                 </div>
+               )}
             </div>
           </div>
         </div>

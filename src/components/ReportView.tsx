@@ -8,10 +8,7 @@ import {
   Target, 
   BarChart3, 
   MessageSquare, 
-  Undo2,
   Download,
-  PieChart as PieChartIcon,
-  TrendingUp,
   Brain,
   Zap,
   Lightbulb,
@@ -20,8 +17,7 @@ import {
   CheckCircle2,
   FileText,
   LayoutDashboard,
-  LogOut,
-  ArrowRight
+  LogOut
 } from 'lucide-react';
 import { 
   Radar, 
@@ -29,15 +25,10 @@ import {
   PolarGrid, 
   PolarAngleAxis, 
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   LineChart,
   Line,
   XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip
+  CartesianGrid
 } from 'recharts';
 
 interface ReportViewProps {
@@ -72,7 +63,6 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
     const userRatio = Math.round((userChars / totalChars) * 100);
 
     const safetyTrend = simulation.messages.map((m, idx) => {
-      // Simulate safety trend based on emotion and turns
       let safety = 50 + (idx * 5);
       if (['당황', '억울', '서운'].includes(m.emotion || '')) safety -= 15;
       if (['감동', '신뢰', '안심'].includes(m.emotion || '')) safety += 20;
@@ -95,20 +85,18 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
       setIsDownloading(true);
       const element = reportRef.current;
       
-      // html-to-image handles oklch and modern CSS much better than html2canvas
       const dataUrl = await toPng(element, {
         quality: 0.95,
         backgroundColor: '#ffffff',
-        width: 1200, // Fixed width for consistent PDF layout
+        width: 1200,
         style: {
-          borderRadius: '0' // Ensure corners are crisp in PDF
+          borderRadius: '0'
         }
       });
       
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       
-      // Calculate height to maintain aspect ratio
       const img = new Image();
       img.src = dataUrl;
       await new Promise(resolve => img.onload = resolve);
@@ -133,7 +121,6 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
 
   return (
     <div className="h-full mt-2 overflow-y-auto bg-slate-50">
-      {/* Dynamic Header Toolbar */}
       <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-50 shadow-sm" data-html2canvas-ignore="true">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-black text-[#002C5F] flex items-center gap-2">
@@ -170,7 +157,6 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
       <div className="max-w-6xl mx-auto pt-24 pb-20 px-8">
         <div ref={reportRef} id="report-screen" className="bg-white p-12 shadow-xl border border-slate-100 rounded-lg min-h-[1400px]">
           
-          {/* Main Title Section */}
           <div className="border-b-2 border-slate-100 pb-10 mb-10 flex justify-between items-end">
             <div>
               <h1 className="text-4xl font-black text-[#002C5F] tracking-tight mb-3">면담 시뮬레이션 결과 리포트 📊</h1>
@@ -186,7 +172,6 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
           </div>
 
           <div className="grid grid-cols-12 gap-8 mb-8">
-            {/* OVERALL SCORE Card */}
             <div className="col-span-4 bg-slate-50 rounded-[2rem] p-10 flex flex-col items-center justify-center border border-slate-100 shadow-sm relative overflow-hidden">
                <div className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-8">OVERALL SCORE</div>
                <div className="relative w-48 h-48 mb-8">
@@ -208,7 +193,6 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                <Trophy className="absolute top-6 right-6 w-8 h-8 text-slate-200" />
             </div>
 
-            {/* Assessment Summary */}
             <div className="col-span-8 bg-white rounded-[2rem] p-10 border-2 border-[#002C5F]/10 flex flex-col">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
@@ -217,13 +201,10 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   </div>
                   <h3 className="text-2xl font-black text-[#002C5F]">종합 총평 (Overall Assessment)</h3>
                 </div>
-                <span className="px-4 py-2 bg-orange-50 text-orange-600 rounded-full text-xs font-black border border-orange-100">
-                  {avgScore >= 80 ? '적극적 문제해결 코칭' : '수동적 관찰형 코칭'}
-                </span>
               </div>
               
               <p className="text-slate-600 leading-relaxed font-bold text-lg mb-10">
-                {simulation.evaluation?.overall || `면담 전반적으로 ${simulation.personaName}님의 심리적 동요를 충분히 해소해주지 못한 채, ${avgScore < 60 ? '형식적인 응답 위주로 대화가 단절되는 양상을 보였습니다.' : '적절한 공감을 바탕으로 대화를 이끌어 나갔으나 구체적인 실행 계획 수립에 아쉬움이 있습니다.'} 리더의 적극적인 경청과 구체적인 가이드가 병행된다면 다음 면담에서는 더 높은 몰입도를 이끌어낼 수 있을 것입니다.`}
+                {simulation.evaluation?.overall || `면담 전반적으로 ${simulation.personaName}님의 심리적 동요를 충분히 해소해주지 못한 채 일방적인 소통이 이뤄진 부분이 관찰됩니다.`}
               </p>
 
               <div className="grid grid-cols-3 gap-6 mt-auto">
@@ -233,9 +214,9 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                   <div className="text-[10px] font-bold text-slate-400">리더 발화량</div>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-2xl">
-                  <div className="text-[10px] font-black text-slate-400 uppercase mb-2">핵심 키워드</div>
-                  <div className="text-sm font-black text-[#002C5F]">#공감 #존중 #계획</div>
-                  <div className="text-[10px] font-bold text-slate-400">체크리스트 완료</div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase mb-2">인터뷰 턴</div>
+                  <div className="text-2xl font-black text-[#002C5F]">{simulation.messages.length}</div>
+                  <div className="text-[10px] font-bold text-slate-400">총 대화 수</div>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-2xl">
                   <div className="text-[10px] font-black text-slate-400 uppercase mb-2">목표 달성</div>
@@ -246,11 +227,10 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-8 mb-8">
-            {/* Quantitative Analysis Card */}
+          <div className="grid grid-cols-12 gap-8 mb-12">
             <div className="col-span-5 bg-white border border-slate-100 rounded-[2rem] p-8 shadow-sm">
                <h4 className="text-lg font-black text-[#002C5F] mb-8 flex items-center gap-2">
-                 <BarChart3 className="w-5 h-5" /> 정량적 분석 (Quantitative)
+                 <BarChart3 className="w-5 h-5" /> 역량 분석 (Competency)
                </h4>
                <div className="h-64 mb-10">
                  <ResponsiveContainer width="100%" height="100%">
@@ -261,218 +241,97 @@ export default function ReportView({ simulation, onRestart }: ReportViewProps) {
                    </RadarChart>
                  </ResponsiveContainer>
                </div>
-               
-               <div className="border-t border-slate-50 pt-8">
-                 <h5 className="text-xs font-black text-slate-400 uppercase mb-4">심리적 안전감 변화 추이</h5>
-                 <div className="h-32">
-                   <ResponsiveContainer width="100%" height="100%">
-                     <LineChart data={analytics.safetyTrend}>
-                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                       <Line type="monotone" dataKey="level" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6 }} />
-                     </LineChart>
-                   </ResponsiveContainer>
-                 </div>
-               </div>
             </div>
 
-            {/* Qualitative Details Column */}
             <div className="col-span-7 flex flex-col gap-6">
-               <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-blue-500">
+                <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-blue-500">
                   <div className="flex items-center gap-2 mb-3 text-blue-700">
-                     <Brain className="w-5 h-5" />
-                     <span className="font-black text-sm">팀원 심리 반응 분석</span>
+                      <Brain className="w-5 h-5" />
+                      <span className="font-black text-sm">팀원 심리 반응</span>
                   </div>
                   <p className="text-sm text-slate-600 font-bold leading-relaxed">
-                    {simulation.evaluation?.psychology || `팀원은 리더의 반복되는 질문에 자신의 상황이 제대로 전달되지 않는다고 느껴 다소 냉소적인 반응을 보였습니다. 특히 침묵을 긍정의 의미보다는 '부담 시그널'로 오해할 수 있는 소지가 관찰되었습니다.`}
+                    {simulation.evaluation?.psychology || `팀원의 현재 상황에 대한 공감적 접근이 필요합니다.`}
                   </p>
-               </div>
+                </div>
 
                 <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-emerald-500">
                   <div className="flex items-center gap-2 mb-3 text-emerald-700">
-                     <Zap className="w-5 h-5" />
-                     <span className="font-black text-sm">리더십 스타일 진단</span>
+                      <Zap className="w-5 h-5" />
+                      <span className="font-black text-sm">리더십 스타일</span>
                   </div>
                   <p className="text-sm text-slate-600 font-bold leading-relaxed">
-                    {simulation.evaluation?.leadership || `문제 중심의 질문 방식은 명확한 현상 파악에 도움이 되지만, ${simulation.personaName}님 같은 관계 지향형 팀원에게는 압박감으로 작용했습니다. '비판'보다는 '지원' 중심의 언어 변환이 필요합니다.`}
-                  </p>
-                </div>
-
-                <div className="bg-slate-50/50 rounded-2xl p-6 border-l-4 border-indigo-500">
-                  <div className="flex items-center gap-2 mb-3 text-indigo-700">
-                     <Target className="w-5 h-5" />
-                     <span className="font-black text-sm">팀원 니즈 파악 (Needs Identification)</span>
-                  </div>
-                  <p className="text-sm text-slate-600 font-bold leading-relaxed">
-                     {simulation.evaluation?.needs || `단위 업무량에 대한 불만보다는 '동료와의 형평성'과 '미래 역량 개발'에 대한 불안이 핵심 요구사항으로 파악됩니다. 이에 대한 명확한 지지 발언이 필요합니다.`}
+                    {simulation.evaluation?.leadership || `문제 중심에서 사람 중심으로 대화의 초점을 옮겨보세요.`}
                   </p>
                 </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mb-12">
-            <div className="bg-emerald-50/50 p-8 rounded-[2rem] border border-emerald-100">
-               <h4 className="text-emerald-700 font-black mb-4 flex items-center gap-2">
-                 <CheckCircle2 className="w-5 h-5" /> 소통상의 강점 (Strengths)
-               </h4>
-               <p className="text-emerald-800/80 text-sm font-bold leading-relaxed">
-                 {simulation.evaluation?.strengths || `팀원이 스스로의 문제점에 대해 솔직하게 고백할 때 끝까지 말을 끊지 않고 경청한 점은 매우 훌륭한 라포 형성의 기초가 되었습니다.`}
-               </p>
-            </div>
-            <div className="bg-orange-50/50 p-8 rounded-[2rem] border border-orange-100">
-               <h4 className="text-orange-700 font-black mb-4 flex items-center gap-2">
-                 <AlertTriangle className="w-5 h-5" /> 개선 포인트 (Improvements)
-               </h4>
-               <p className="text-orange-800/80 text-sm font-bold leading-relaxed">
-                 {simulation.evaluation?.improvements || `결론을 조급하게 내리려 하기보다, 상대방의 질문에 역질문을 통해 스스로 해답을 찾게 하는 '코칭적 대화'의 비중을 높여야 합니다.`}
-               </p>
-            </div>
-          </div>
-
-          {/* Negative Pattern Analysis Section */}
-          {(simulation.evaluation?.actionPlan?.negativePatterns && simulation.evaluation.actionPlan.negativePatterns?.length > 0) && (
-            <div className="mb-12">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-200">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-                <h3 className="text-2xl font-black text-[#002C5F]">화법 패턴 심층 분석 (Negative pattern analysis)</h3>
-              </div>
-
-              <div className="space-y-8">
-                {simulation.evaluation?.actionPlan?.negativePatterns?.map((p, idx) => (
-                  <div key={idx} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                    <div className="p-8 bg-slate-50/50 border-b border-slate-100">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-xs font-black border border-red-100">
-                          {p.pattern}
-                        </span>
-                        <div className="text-xs text-slate-400 font-bold uppercase tracking-widest">교정 필요 패턴 #{idx + 1}</div>
-                      </div>
-                      <div className="flex gap-4 items-start">
-                        <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 font-black shrink-0">QUOTE</div>
-                        <p className="text-lg font-bold text-slate-700 italic">"{p.actualQuote}"</p>
-                      </div>
-                    </div>
-
-                    <div className="p-8 grid grid-cols-12 gap-10">
-                      <div className="col-span-4">
-                        <h4 className="text-sm font-black text-slate-400 uppercase mb-4 tracking-tighter">심리적 영향 (IMPACT)</h4>
-                        <p className="text-sm text-slate-600 font-bold leading-relaxed">{p.impact}</p>
-                      </div>
-                      <div className="col-span-8 border-l border-slate-100 pl-10">
-                        <h4 className="text-sm font-black text-blue-600 uppercase mb-6 flex items-center gap-2">
-                          <Zap className="w-4 h-4" /> 현대자동차 현장 맞춤형 대체 스크립트 (REPLACEMENTS)
-                        </h4>
-                        <div className="space-y-4">
-                          {p.replacementScripts.map((script, sIdx) => (
-                            <div key={sIdx} className="group relative">
-                              <div className="flex items-center gap-4 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50 group-hover:bg-blue-50 transition-all">
-                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-blue-600 font-black text-xs border border-blue-100 shadow-sm group-hover:scale-110 transition-transform">
-                                  {sIdx + 1}
-                                </div>
-                                <p className="text-sm font-bold text-[#002C5F] leading-snug">{script}</p>
-                                <ArrowRight className="w-4 h-4 ml-auto text-blue-300 transform group-hover:translate-x-1 transition-transform" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Actionable Insights Footer */}
-              <div className="bg-[#002C5F]/5 p-12 rounded-[2.5rem] mt-12">
+          <div className="bg-[#002C5F]/5 p-12 rounded-[2.5rem] mt-12 mb-12">
             <h3 className="text-2xl font-black text-[#002C5F] mb-10 flex items-center gap-3">
-              <Lightbulb className="w-8 h-8 text-yellow-500" /> 맞춤형 솔루션 및 액션 플랜 (Actionable Insights)
+              <Lightbulb className="w-8 h-8 text-yellow-500" /> 액션 플랜 (Action Plan)
             </h3>
             
-            <div className="grid grid-cols-2 gap-10 mb-10">
-              {/* Interview Skill Suggestion */}
-              <div className="col-span-1 bg-white p-8 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-                <div className="flex items-center gap-3 mb-6 relative">
-                  <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg">
+            <div className="grid grid-cols-2 gap-10">
+              <div className="bg-white p-8 rounded-3xl border border-blue-100 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-blue-600 text-white rounded-xl">
                     <Zap className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-black text-[#002C5F]">권장 면담 스킬</h4>
+                  <h4 className="text-lg font-black text-[#002C5F]">핵심 스킬</h4>
                 </div>
-                <div className="text-xl font-black text-blue-600 mb-2">
-                  {simulation.evaluation?.actionPlan?.interviewSkill || '개방형 질문 중심의 경청법'}
-                </div>
-                <p className="text-sm text-slate-500 font-bold leading-relaxed">
-                  상대방의 '예/아니오' 답변을 유도하는 폐쇄형 질문보다는, 상대방의 생각을 열어주는 방식의 소통이 필요합니다.
+                <p className="text-sm text-slate-600 font-bold">
+                  {simulation.evaluation?.actionPlan?.interviewSkill || '적극적 경청 및 개방형 질문'}
                 </p>
               </div>
 
-              {/* Practice scripts */}
-              <div className="col-span-1 bg-white p-8 rounded-3xl border border-emerald-100 shadow-sm">
+              <div className="bg-white p-8 rounded-3xl border border-emerald-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-lg">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl">
                     <MessageSquare className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-black text-[#002C5F]">추천 스크립트 (Scripts)</h4>
+                  <h4 className="text-lg font-black text-[#002C5F]">가이드라인</h4>
                 </div>
-                <div className="space-y-3">
-                  {(simulation.evaluation?.actionPlan?.practiceScripts || [
-                    "요즘 박 대리님이 가장 몰입하고 있는 업무는 무엇인가요?",
-                    "그 과정에서 제가 지원해줄 수 있는 부분이 있다면 말씀해주세요.",
-                    "솔직하게 말씀해주셔서 감사합니다. 개선을 위해 함께 고민해봅시다."
-                  ]).map((script: string, i: number) => (
-                    <div key={i} className="p-3 bg-emerald-50 rounded-xl border border-emerald-100/50 text-emerald-800 text-[13px] font-bold leading-relaxed flex gap-3">
-                      <span className="text-emerald-400">Q.</span>
-                      {script}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-10">
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 text-slate-800 font-black text-sm uppercase">
-                  <FileText className="w-4 h-4" /> 리더의 첫 마디 제언
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 italic text-slate-500 text-sm leading-relaxed shadow-sm quote-card relative font-bold">
-                  "{simulation.evaluation?.actionPlan?.quote || `${simulation.personaName}씨, 요즘 바쁜 일정 속에서도 묵묵히 제 역할을 해주고 있어 든든해요. 혹시 업무 배분에서 제가 놓치고 있는 부분이 있다면 편하게 말해주세요.`}"
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-slate-800 font-black text-sm uppercase">
-                  <UserCheck className="w-4 h-4" /> 리더십 행동 가이드
-                </div>
-                <ul className="space-y-3">
-                  {(simulation.evaluation?.actionPlan?.guidelines || ['샌드위치 피드백 사용', '7:3 경청 원칙 준수', 'Open-ended 질문 최소 1회']).map((item: string, i: number) => (
-                    <li key={i} className="flex items-center gap-3 text-slate-600 text-sm font-bold">
-                       <span className="w-1.5 h-1.5 bg-[#002C5F] rounded-full"></span>
-                       {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-slate-800 font-black text-sm uppercase">
-                  <AlertTriangle className="w-4 h-4" /> 리스크 관리 방안
-                </div>
-                <p className="text-slate-500 text-sm leading-relaxed font-bold">
-                  {simulation.evaluation?.actionPlan?.risk || `팀원의 무미건조한 반응이 3회 이상 지속될 경우, 팀원은 리더가 자신에게 관심이 없거나 포기했다고 판단하여 이탈 의사가 생길 수 있습니다. 적극적인 비언어적 표현(고개 끄덕임, 눈맞춤)과 언어적 피드백으로 신뢰를 회복해야 합니다.`}
+                <p className="text-sm text-slate-600 font-bold">
+                  {simulation.evaluation?.actionPlan?.guidelines?.join(', ') || '샌드위치 피드백, 7:3 경청 원칙'}
                 </p>
               </div>
+            </div>
+          </div>
+
+          <div className="pt-12 border-t-2 border-slate-100">
+            <h3 className="text-2xl font-black text-[#002C5F] mb-8 flex items-center gap-3">
+              <MessageSquare className="w-7 h-7 text-blue-500" /> 면담 대화 기록 (History)
+            </h3>
+            
+            <div className="space-y-6">
+              {simulation.messages.map((m, idx) => (
+                <div key={idx} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex items-center gap-2 mb-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${m.role === 'user' ? 'bg-[#002C5F] text-white' : 'bg-slate-200 text-slate-600'}`}>
+                      {m.role === 'user' ? 'Leader' : 'Member'}
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold truncate">
+                      {new Date(m.timestamp || Date.now()).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className={`p-4 rounded-2xl text-sm leading-relaxed font-medium max-w-[85%] border ${
+                    m.role === 'user' 
+                      ? 'bg-slate-50 border-slate-200 text-slate-800 rounded-tr-none' 
+                      : 'bg-white border-slate-100 text-slate-700 rounded-tl-none shadow-sm'
+                  }`}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
         </div>
 
-        <div className="mt-12 text-center" data-html2canvas-ignore="true">
-           <p className="text-slate-400 font-bold mb-6">이 결과는 기록되어 향후 실습 결과와 비주얼 대시보드에서 비교 분석할 수 있습니다.</p>
+        <div className="mt-12 text-center">
            <button 
               onClick={onRestart}
-              className="px-12 py-5 bg-[#002C5F] text-white rounded-2xl font-black text-xl hover:shadow-2xl transition-all active:scale-95 shadow-xl inline-flex items-center gap-3"
+              className="px-12 py-5 bg-[#002C5F] text-white rounded-2xl font-black text-xl hover:shadow-2xl transition-all shadow-xl inline-flex items-center gap-3"
             >
               새로운 시뮬레이션 시작하기
             </button>

@@ -49,6 +49,14 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "userEmail", "personaId", "scenarioId", "messages", "timestamp"]
+    },
+    "settings": {
+      "title": "System Settings",
+      "description": "Application level settings",
+      "type": "object",
+      "properties": {
+        "publicAccess": { "type": "boolean" }
+      }
     }
   },
   "firestore": {
@@ -63,6 +71,10 @@
     "/simulations/{simulationId}": {
       "schema": "simulations",
       "description": "Simulation history logs"
+    },
+    "/settings/{settingId}": {
+      "schema": "settings",
+      "description": "System configuration"
     }
   }
 }

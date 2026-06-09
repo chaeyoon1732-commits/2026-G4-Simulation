@@ -43,6 +43,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
   const [goals, setGoals] = useState([false, false, false]);
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
   const [turnCount, setTurnCount] = useState(0);
+  const [reportError, setReportError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const goalList = [
@@ -284,12 +285,13 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
   };
 
   const handleFinish = async (isAuto = false) => {
-    if (!isAuto && turnCount < 5) {
-      alert(`최소 5회 이상의 대화가 필요합니다. (현재: ${turnCount}회)`);
+    if (!isAuto && turnCount < 3) {
+      alert(`면담 분석을 위해 최소 3회 이상의 대화가 필요합니다. (현재: ${turnCount}회)`);
       return;
     }
 
     setIsGeneratingReport(true);
+    setReportError(null);
     let evaluationData = null;
 
     try {
@@ -300,17 +302,21 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
         body: JSON.stringify({
           persona,
           scenario,
-          history: messages.map(m => ({ role: m.role, content: m.content })) // Ensure plain roles
+          history: messages.map(m => ({ role: m.role, content: m.content })) 
         })
       });
 
       if (analysisResponse.ok) {
         evaluationData = await analysisResponse.json();
       } else {
-        console.warn('AI Analysis failed with status:', analysisResponse.status);
+        const errData = await analysisResponse.json().catch(() => ({}));
+        throw new Error(errData.error || 'AI 분석 중 오류가 발생했습니다.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to get AI analysis report:', err);
+      setReportError(err.message || '네트워크 오류로 분석에 실패했습니다.');
+      setIsGeneratingReport(false);
+      return; // Stop and let user retry
     } finally {
       setIsGeneratingReport(false);
     }
@@ -337,7 +343,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       finalEmotion: currentEmotion,
       metrics: { ...metrics },
       turnCount,
-      isCompleted: turnCount >= 5 || isAuto,
+      isCompleted: turnCount >= 3 || isAuto,
       timestamp: Date.now(),
       evaluation: evaluationData
     };
@@ -351,7 +357,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       }
     }
     
-    if (turnCount >= 5) {
+    if (turnCount >= 3) {
       onShowReport(simulationData);
     } else {
       if (isAuto) {
@@ -426,7 +432,7 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       {/* Main Chat Area (MAXIMIZED) */}
       <section className="flex-1 flex flex-col premium-card overflow-hidden bg-white shadow-2xl relative">
         <AnimatePresence>
-          {isGeneratingReport && (
+          {(isGeneratingReport || reportError) && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -434,34 +440,65 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
               className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center"
             >
               <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl max-w-sm w-full space-y-8 border border-white/20">
-                <div className="flex justify-center">
-                  <div className="relative">
-                    <div className="w-20 h-20 border-4 border-h-blue/10 border-t-[#002C5F] rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <FileText className="w-8 h-8 text-[#002C5F]" />
+                {!reportError ? (
+                  <>
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <div className="w-20 h-20 border-4 border-h-blue/10 border-t-[#002C5F] rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <FileText className="w-8 h-8 text-[#002C5F]" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h3 className="text-2xl font-black text-slate-800 tracking-tight">면담 분석 리포트 생성 중</h3>
-                  <p className="text-slate-500 text-sm leading-relaxed font-bold">
-                    리더님의 면담 발언 데이터와 팀원의 심리 반응을<br/>
-                    현대자동차 리더십 전문가 AI가 정밀 분석 중입니다.
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex gap-1.5 justify-center">
-                    {[0, 1, 2].map((i) => (
-                      <motion.span 
-                        key={i}
-                        animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }}
-                        transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.2 }}
-                        className="w-2.5 h-2.5 bg-[#002C5F] rounded-full"
-                      />
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-slate-300 font-bold uppercase tracking-[0.2em]">Data Analysis in Progress...</p>
-                </div>
+                    <div className="space-y-3">
+                      <h3 className="text-2xl font-black text-slate-800 tracking-tight">면담 분석 리포트 생성 중</h3>
+                      <p className="text-slate-500 text-sm leading-relaxed font-bold">
+                        리더님의 면담 데이터를 바탕으로<br/>
+                        핵심 인사이트를 신속하게 도출 중입니다.
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="flex gap-1.5 justify-center">
+                        {[0, 1, 2].map((i) => (
+                          <motion.span 
+                            key={i}
+                            animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }}
+                            transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.2 }}
+                            className="w-2.5 h-2.5 bg-[#002C5F] rounded-full"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-center">
+                      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
+                        <AlertCircle className="w-10 h-10 text-red-500" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <h3 className="text-xl font-bold text-slate-800">리포트 생성 실패</h3>
+                      <p className="text-slate-500 text-sm leading-relaxed">
+                        {reportError}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <button 
+                        onClick={() => handleFinish()}
+                        className="bg-[#002C5F] text-white py-3 rounded-2xl font-bold text-sm shadow-lg"
+                      >
+                        다시 시도하기
+                      </button>
+                      <button 
+                        onClick={() => setReportError(null)}
+                        className="text-slate-400 text-xs font-bold"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           )}
