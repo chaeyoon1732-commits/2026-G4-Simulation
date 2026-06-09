@@ -291,40 +291,45 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
   };
 
   const handleFinish = async (isAuto = false) => {
-    if (!isAuto && turnCount < 3) {
-      alert(`면담 분석을 위해 최소 3회 이상의 대화가 필요합니다. (현재: ${turnCount}회)`);
-      return;
-    }
+    // We now allow saving even for short conversations (< 3 turns) 
+    // to ensure all user interaction attempts are logged.
 
     setIsGeneratingReport(true);
     setReportError(null);
     let evaluationData = null;
 
-    try {
-      // Get AI Analysis for the report
-      const analysisResponse = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          persona,
-          scenario,
-          history: messages.map(m => ({ role: m.role, content: m.content })) 
-        })
-      });
+    // AI Analysis is only useful if there's enough dialogue (at least 2 turns)
+    if (turnCount >= 2) {
+      try {
+        // Get AI Analysis for the report
+        const analysisResponse = await fetch('/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona,
+            scenario,
+            history: messages.map(m => ({ role: m.role, content: m.content })) 
+          })
+        });
 
-      if (analysisResponse.ok) {
-        evaluationData = await analysisResponse.json();
-      } else {
-        const errData = await analysisResponse.json().catch(() => ({}));
-        console.warn('AI Analysis failed, but will still save simulation record:', errData.error);
-        setReportError(errData.error || 'AI 분석 중 오류가 발생했습니다. (기록은 저장됩니다)');
+        if (analysisResponse.ok) {
+          evaluationData = await analysisResponse.json();
+        } else {
+          const errData = await analysisResponse.json().catch(() => ({}));
+          console.warn('AI Analysis failed, but will still save simulation record:', errData.error);
+          if (turnCount >= 3) {
+            setReportError(errData.error || 'AI 분석 중 오류가 발생했습니다. (기록은 저장됩니다)');
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to get AI analysis report:', err);
+        if (turnCount >= 3) {
+          setReportError(err.message || '네트워크 오류로 분석에 실패했습니다. (기록은 저장됩니다)');
+        }
       }
-    } catch (err: any) {
-      console.error('Failed to get AI analysis report:', err);
-      setReportError(err.message || '네트워크 오류로 분석에 실패했습니다. (기록은 저장됩니다)');
-    } finally {
-      setIsGeneratingReport(false);
     }
+    
+    setIsGeneratingReport(false);
 
     // Prepare cleaned message history for storage
     const cleanMessages = messages.map(m => ({
@@ -348,13 +353,13 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       finalEmotion: currentEmotion,
       metrics: { ...metrics },
       turnCount,
-      isCompleted: turnCount >= 3 || isAuto,
+      isCompleted: turnCount >= 3,
       timestamp: Date.now(),
       evaluation: evaluationData
     };
 
     // ALWAYS try to save if there was a conversation
-    if (cleanMessages.length > 1) {
+    if (cleanMessages.length >= 1) {
       try {
         console.log('[ChatView] Persisting simulation result to Firestore...');
         const savedId = await dbService.saveSimulation(simulationData);
@@ -364,13 +369,12 @@ export default function ChatView({ persona, scenario, user, onExit, onShowReport
       }
     }
     
-    // If we have an error and no evaluation data, let the user know they can see the chat log at least
-    // But if turn count was enough, we proceed to show whatever we have
-    if (turnCount >= 3) {
+    // Logic for what to show after finish button is clicked
+    if (evaluationData || turnCount >= 3) {
       onShowReport(simulationData);
     } else {
-      if (isAuto && !evaluationData) {
-        alert('면담 시간이 종료되었습니다. (분석 실패)');
+      if (!isAuto) {
+        alert('대화 내용이 너무 짧아 리포트는 생성되지 않지만, 대화 로그는 관리자 기록에 저장되었습니다.');
       }
       onExit();
     }

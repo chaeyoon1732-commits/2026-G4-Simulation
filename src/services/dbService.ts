@@ -162,20 +162,19 @@ export const dbService = {
 
   async getSimulations(): Promise<SimulationRecord[]> {
     try {
-      // Use orderBy and limit to get the most recent records
+      // Use orderBy and limit to get the newest records first
       const q = query(
         collection(db, SIMULATIONS_COL), 
         orderBy('timestamp', 'desc'), 
-        limit(500)
+        limit(2000)
       );
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
     } catch (error) {
       console.warn('[dbService] getSimulations query error, falling back to client-side sort:', error);
-      // Fallback: fetch without orderBy if index is missing
+      // Fallback: fetch more if index is missing to find today's records
       try {
-        // Increase limit in fallback to ensure today's records are likely fetched
-        const q = query(collection(db, SIMULATIONS_COL), limit(1000));
+        const q = query(collection(db, SIMULATIONS_COL), limit(5000));
         const snapshot = await getDocs(q);
         const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SimulationRecord));
         

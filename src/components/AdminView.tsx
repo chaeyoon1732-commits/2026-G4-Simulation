@@ -18,7 +18,8 @@ import {
   Maximize2,
   Settings,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -51,6 +52,9 @@ export default function AdminView() {
 
   useEffect(() => {
     fetchData();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
@@ -317,7 +321,7 @@ export default function AdminView() {
                   <h3 className="font-bold text-slate-800 text-sm">최근 시뮬레이션 로그</h3>
                   <div className="flex gap-2">
                     <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold">
-                      전체: {simulations.length}
+                      전체 DB: {simulations.length}
                     </span>
                     <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-[10px] font-bold">
                       오늘: {simulations.filter(s => {
@@ -325,9 +329,16 @@ export default function AdminView() {
                         return date && date.toDateString() === new Date().toDateString();
                       }).length}
                     </span>
+                    <button 
+                      onClick={fetchData}
+                      className="p-1 hover:bg-slate-200 rounded-md transition-colors"
+                      title="새로고침"
+                    >
+                      <RefreshCw className={`w-3 h-3 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">Showing up to 500 records</span>
+                <span className="text-[10px] text-slate-400 font-mono italic">새로고침: {new Date().toLocaleTimeString()}</span>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-left text-xs">
